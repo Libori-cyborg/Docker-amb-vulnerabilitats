@@ -1,0 +1,28 @@
+# Docker Compose per comparar no-resource-limits vulnerable vs fixed
+version: '3.8'
+
+services:
+  vulnerable-resources:
+    build:
+      context: .
+      dockerfile: Dockerfile.vulnerable
+    container_name: vuln-no-resource-limits
+    ports:
+      - "8087:8080"
+    # Sense cap limit definit
+
+  fixed-resources:
+    build:
+      context: .
+      dockerfile: Dockerfile.fixed
+    container_name: fixed-no-resource-limits
+    ports:
+      - "8088:8080"
+    deploy:
+      resources:
+        limits:
+          cpus: '0.50'
+          memory: 256M
+        reservations:
+          cpus: '0.25'
+          memory: 128M
