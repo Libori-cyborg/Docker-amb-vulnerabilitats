@@ -1,0 +1,193 @@
+# Docker Compose global - Arnau Libori i Ayoub El Ballaoui
+# Aixeca tots els contenidors vulnerables i corregits del projecte
+version: '3.8'
+
+networks:
+  insecure-net:
+    driver: bridge
+  secure-net:
+    driver: bridge
+    internal: true
+
+services:
+
+  # Vulnerabilitat 1 - running-as-root
+  vuln-running-as-root:
+    build:
+      context: ../vulnerabilities/configuration/running-as-root
+      dockerfile: Dockerfile.vulnerable
+    container_name: vuln-running-as-root
+    ports:
+      - "8081:8080"
+
+  fixed-running-as-root:
+    build:
+      context: ../vulnerabilities/configuration/running-as-root
+      dockerfile: Dockerfile.fixed
+    container_name: fixed-running-as-root
+    ports:
+      - "8082:8080"
+
+  # Vulnerabilitat 2 - exposed-ports
+  vuln-exposed-ports:
+    build:
+      context: ../vulnerabilities/network/exposed-ports
+      dockerfile: Dockerfile.vulnerable
+    container_name: vuln-exposed-ports
+    ports:
+      - "8083:8080"
+      - "2222:22"
+      - "3307:3306"
+
+  fixed-exposed-ports:
+    build:
+      context: ../vulnerabilities/network/exposed-ports
+      dockerfile: Dockerfile.fixed
+    container_name: fixed-exposed-ports
+    ports:
+      - "8084:8080"
+
+  # Vulnerabilitat 3 - hardcoded-credentials
+  vuln-hardcoded-credentials:
+    build:
+      context: ../vulnerabilities/configuration/hardcoded-credentials
+      dockerfile: Dockerfile.vulnerable
+    container_name: vuln-hardcoded-credentials
+    ports:
+      - "8085:8080"
+
+  fixed-hardcoded-credentials:
+    build:
+      context: ../vulnerabilities/configuration/hardcoded-credentials
+      dockerfile: Dockerfile.fixed
+    container_name: fixed-hardcoded-credentials
+    ports:
+      - "8086:8080"
+    env_file:
+      - ../vulnerabilities/configuration/hardcoded-credentials/.env
+
+  # Vulnerabilitat 4 - obsolete-versions
+  vuln-obsolete-versions:
+    build:
+      context: ../vulnerabilities/configuration/obsolete-versions
+      dockerfile: Dockerfile.vulnerable
+    container_name: vuln-obsolete-versions
+    ports:
+      - "8087:80"
+
+  fixed-obsolete-versions:
+    build:
+      context: ../vulnerabilities/configuration/obsolete-versions
+      dockerfile: Dockerfile.fixed
+    container_name: fixed-obsolete-versions
+    ports:
+      - "8088:80"
+
+  # Vulnerabilitat 5 - no-resource-limits
+  vuln-no-resource-limits:
+    build:
+      context: ../vulnerabilities/container-host/no-resource-limits
+      dockerfile: Dockerfile.vulnerable
+    container_name: vuln-no-resource-limits
+    ports:
+      - "8089:8080"
+
+  fixed-no-resource-limits:
+    build:
+      context: ../vulnerabilities/container-host/no-resource-limits
+      dockerfile: Dockerfile.fixed
+    container_name: fixed-no-resource-limits
+    ports:
+      - "8090:8080"
+    deploy:
+      resources:
+        limits:
+          cpus: '0.50'
+          memory: 256M
+        reservations:
+          cpus: '0.25'
+          memory: 128M
+
+  # Vulnerabilitat 6 - unnecessary-capabilities
+  vuln-unnecessary-capabilities:
+    build:
+      context: ../vulnerabilities/container-host/unnecessary-capabilities
+      dockerfile: Dockerfile.vulnerable
+    container_name: vuln-unnecessary-capabilities
+    ports:
+      - "8091:8080"
+
+  fixed-unnecessary-capabilities:
+    build:
+      context: ../vulnerabilities/container-host/unnecessary-capabilities
+      dockerfile: Dockerfile.fixed
+    container_name: fixed-unnecessary-capabilities
+    ports:
+      - "8092:8080"
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE
+    security_opt:
+      - no-new-privileges:true
+
+  # Vulnerabilitat 7 - dangerous-mounts
+  vuln-dangerous-mounts:
+    build:
+      context: ../vulnerabilities/container-host/dangerous-mounts
+      dockerfile: Dockerfile.vulnerable
+    container_name: vuln-dangerous-mounts
+    ports:
+      - "8093:8080"
+    volumes:
+      - /:/host
+      - /var/run/docker.sock:/var/run/docker.sock
+
+  fixed-dangerous-mounts:
+    build:
+      context: ../vulnerabilities/container-host/dangerous-mounts
+      dockerfile: Dockerfile.fixed
+    container_name: fixed-dangerous-mounts
+    ports:
+      - "8094:8080"
+    volumes:
+      - ./data:/app/data:ro
+
+  # Vulnerabilitat 8 - unencrypted-communication
+  vuln-unencrypted-communication:
+    build:
+      context: ../vulnerabilities/network/unencrypted-communication
+      dockerfile: Dockerfile.vulnerable
+    container_name: vuln-unencrypted-communication
+    ports:
+      - "8095:80"
+
+  fixed-unencrypted-communication:
+    build:
+      context: ../vulnerabilities/network/unencrypted-communication
+      dockerfile: Dockerfile.fixed
+    container_name: fixed-unencrypted-communication
+    ports:
+      - "8096:80"
+      - "8443:443"
+
+  # Vulnerabilitat 9 - insecure-network-config
+  vuln-insecure-network-config:
+    build:
+      context: ../vulnerabilities/network/insecure-network-config
+      dockerfile: Dockerfile.vulnerable
+    container_name: vuln-insecure-network-config
+    ports:
+      - "0.0.0.0:8097:8080"
+    networks:
+      - insecure-net
+
+  fixed-insecure-network-config:
+    build:
+      context: ../vulnerabilities/network/insecure-network-config
+      dockerfile: Dockerfile.fixed
+    container_name: fixed-insecure-network-config
+    ports:
+      - "127.0.0.1:8098:8080"
+    networks:
+      - secure-net
