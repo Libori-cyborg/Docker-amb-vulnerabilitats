@@ -1,1 +1,0 @@
-# Docker-amb-vulnerabilitats
