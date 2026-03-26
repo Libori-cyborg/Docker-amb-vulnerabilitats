@@ -1,0 +1,27 @@
+# Docker Compose per comparar dangerous-mounts vulnerable vs fixed
+version: '3.8'
+
+services:
+  vulnerable-mounts:
+    build:
+      context: .
+      dockerfile: Dockerfile.vulnerable
+    container_name: vuln-dangerous-mounts
+    ports:
+      - "8091:8080"
+    volumes:
+      # Muntatge de l'arrel del host, acces complet al sistema de fitxers
+      - /:/host
+      # Muntatge del socket de Docker, control total del daemon
+      - /var/run/docker.sock:/var/run/docker.sock
+
+  fixed-mounts:
+    build:
+      context: .
+      dockerfile: Dockerfile.fixed
+    container_name: fixed-dangerous-mounts
+    ports:
+      - "8092:8080"
+    volumes:
+      # Nomes es munta la carpeta estrictament necessaria i en nomes lectura
+      - ./data:/app/data:ro
