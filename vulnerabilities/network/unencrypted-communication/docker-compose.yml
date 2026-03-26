@@ -1,0 +1,20 @@
+# Docker Compose per comparar unencrypted-communication vulnerable vs fixed
+version: '3.8'
+
+services:
+  vulnerable-communication:
+    build:
+      context: .
+      dockerfile: Dockerfile.vulnerable
+    container_name: vuln-unencrypted-communication
+    ports:
+      - "8093:80"
+
+  fixed-communication:
+    build:
+      context: .
+      dockerfile: Dockerfile.fixed
+    container_name: fixed-unencrypted-communication
+    ports:
+      - "8094:80"
+      - "8443:443"
