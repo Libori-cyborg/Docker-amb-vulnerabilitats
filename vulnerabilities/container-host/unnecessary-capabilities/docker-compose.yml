@@ -1,0 +1,26 @@
+# Docker Compose per comparar unnecessary-capabilities vulnerable vs fixed
+version: '3.8'
+
+services:
+  vulnerable-capabilities:
+    build:
+      context: .
+      dockerfile: Dockerfile.vulnerable
+    container_name: vuln-unnecessary-capabilities
+    ports:
+      - "8089:8080"
+    # Sense cap restriccio de capabilities
+
+  fixed-capabilities:
+    build:
+      context: .
+      dockerfile: Dockerfile.fixed
+    container_name: fixed-unnecessary-capabilities
+    ports:
+      - "8090:8080"
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE
+    security_opt:
+      - no-new-privileges:true
