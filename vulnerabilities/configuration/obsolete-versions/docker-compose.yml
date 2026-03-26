@@ -1,0 +1,19 @@
+# Docker Compose per comparar obsolete-versions vulnerable vs fixed
+version: '3.8'
+
+services:
+  vulnerable-versions:
+    build:
+      context: .
+      dockerfile: Dockerfile.vulnerable
+    container_name: vuln-obsolete-versions
+    ports:
+      - "8085:80"
+
+  fixed-versions:
+    build:
+      context: .
+      dockerfile: Dockerfile.fixed
+    container_name: fixed-obsolete-versions
+    ports:
+      - "8086:80"

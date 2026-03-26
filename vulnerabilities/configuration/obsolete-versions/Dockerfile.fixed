@@ -1,0 +1,19 @@
+# Fixed: versions actualitzades i imatge base moderna
+FROM ubuntu:22.04
+
+# Versions actuals amb pegats de seguretat aplicats
+RUN apt-get update && apt-get install -y \
+    apache2 \
+    php8.1 \
+    openssl
+
+RUN useradd -m -u 1001 appuser
+
+# Actualitzar sempre abans de construir
+RUN apt-get upgrade -y && apt-get clean
+
+EXPOSE 80
+
+USER appuser
+
+CMD ["apache2ctl", "-D", "FOREGROUND"]

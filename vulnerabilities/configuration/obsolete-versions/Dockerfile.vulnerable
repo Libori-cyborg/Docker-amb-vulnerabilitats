@@ -1,0 +1,13 @@
+# Vulnerable: versions obsoletes amb CVEs coneguts
+FROM ubuntu:18.04
+
+# Versions antigues amb vulnerabilitats conegudes
+RUN apt-get update && apt-get install -y \
+    apache2=2.4.29* \
+    php7.2* \
+    openssl=1.1.1*
+
+# Imatge base antiga sense pegats de seguretat
+EXPOSE 80 443
+
+CMD ["apache2ctl", "-D", "FOREGROUND"]
