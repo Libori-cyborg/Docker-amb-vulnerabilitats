@@ -1,0 +1,35 @@
+# Credencials i secrets - MAI pujar al repositori
+.env
+*.env
+.env.*
+secrets/
+config.ini
+
+# Docker
+*.tar
+docker-compose.override.yml
+
+# Logs
+*.log
+logs/
+
+# Sistema operatiu
+.DS_Store
+Thumbs.db
+*~
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Temporals
+tmp/
+temp/
+*.tmp
