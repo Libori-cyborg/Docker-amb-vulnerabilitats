@@ -1,0 +1,32 @@
+# Docker Compose per comparar insecure-network-config vulnerable vs fixed
+version: '3.8'
+
+networks:
+  insecure-net:
+    driver: bridge
+  secure-net:
+    driver: bridge
+    internal: true
+
+services:
+  vulnerable-network:
+    build:
+      context: .
+      dockerfile: Dockerfile.vulnerable
+    container_name: vuln-insecure-network-config
+    ports:
+      # Binding a totes les interficies del host
+      - "0.0.0.0:8095:8080"
+    networks:
+      - insecure-net
+
+  fixed-network:
+    build:
+      context: .
+      dockerfile: Dockerfile.fixed
+    container_name: fixed-insecure-network-config
+    ports:
+      # Binding nomes a localhost del host
+      - "127.0.0.1:8096:8080"
+    networks:
+      - secure-net

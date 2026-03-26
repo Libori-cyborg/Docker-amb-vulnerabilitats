@@ -1,0 +1,9 @@
+# Vulnerable: contenidor amb configuració de xarxa insegura
+FROM ubuntu:22.04
+
+RUN apt-get update && apt-get install -y python3 net-tools
+
+WORKDIR /app
+
+# Escolta a totes les interficies de xarxa sense restriccions
+CMD ["python3", "-m", "http.server", "8080", "--bind", "0.0.0.0"]
