@@ -1,0 +1,20 @@
+# Vulnerable: credencials hardcodejades al Dockerfile
+FROM ubuntu:20.04
+
+RUN apt-get update && apt-get install -y mysql-server python3
+
+# Credencials visibles directament al Dockerfile
+ENV DB_HOST=localhost
+ENV DB_USER=admin
+ENV DB_PASSWORD=SuperSecret123
+ENV DB_NAME=produccio
+ENV API_KEY=a3f5c8e2b1d4f7a9c2e5b8d1f4a7c0e3
+
+# Credencials hardcodejades en un fitxer de configuració
+RUN echo "[database]" > /app/config.ini && \
+    echo "host=localhost" >> /app/config.ini && \
+    echo "user=admin" >> /app/config.ini && \
+    echo "password=SuperSecret123" >> /app/config.ini
+
+WORKDIR /app
+CMD ["python3", "-m", "http.server", "8080"]

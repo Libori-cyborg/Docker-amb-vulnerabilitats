@@ -1,0 +1,19 @@
+# Docker Compose per comparar running-as-root vulnerable vs fixed
+version: '3.8'
+
+services:
+  vulnerable-root:
+    build:
+      context: .
+      dockerfile: Dockerfile.vulnerable
+    container_name: vuln-running-as-root
+    ports:
+      - "8081:8080"
+
+  fixed-root:
+    build:
+      context: .
+      dockerfile: Dockerfile.fixed
+    container_name: fixed-running-as-root
+    ports:
+      - "8082:8080"

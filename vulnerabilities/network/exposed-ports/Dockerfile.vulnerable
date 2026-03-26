@@ -1,0 +1,16 @@
+# Vulnerable: exposició innecessària de ports
+FROM ubuntu:20.04
+
+RUN apt-get update && apt-get install -y \
+    python3 \
+    mysql-server \
+    ssh
+
+# S'exposen tots els ports innecessàriament
+EXPOSE 22
+EXPOSE 3306
+EXPOSE 8080
+EXPOSE 8443
+EXPOSE 9090
+
+CMD ["python3", "-m", "http.server", "8080"]

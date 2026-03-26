@@ -1,0 +1,22 @@
+# Fixed: credencials gestionades amb variables d'entorn externes
+FROM ubuntu:20.04
+
+RUN apt-get update && apt-get install -y python3
+
+RUN useradd -m -u 1001 appuser
+
+WORKDIR /app
+
+# Les variables es defineixen sense valor per defecte sensible
+ENV DB_HOST=""
+ENV DB_USER=""
+ENV DB_PASSWORD=""
+ENV DB_NAME=""
+ENV API_KEY=""
+
+COPY . .
+RUN chown -R appuser:appuser /app
+
+USER appuser
+
+CMD ["python3", "-m", "http.server", "8080"]

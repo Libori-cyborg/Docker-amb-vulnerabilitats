@@ -1,0 +1,17 @@
+# Fixed: només s'exposa el port necessari
+FROM ubuntu:20.04
+
+RUN apt-get update && apt-get install -y python3
+
+RUN useradd -m -u 1001 appuser
+
+WORKDIR /app
+COPY . .
+RUN chown -R appuser:appuser /app
+
+USER appuser
+
+# Només s'exposa el port que realment necessita l'aplicació
+EXPOSE 8080
+
+CMD ["python3", "-m", "http.server", "8080"]

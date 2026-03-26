@@ -1,0 +1,21 @@
+# Docker Compose per comparar exposed-ports vulnerable vs fixed
+version: '3.8'
+
+services:
+  vulnerable-ports:
+    build:
+      context: .
+      dockerfile: Dockerfile.vulnerable
+    container_name: vuln-exposed-ports
+    ports:
+      - "8081:8080"
+      - "2222:22"
+      - "3307:3306"
+
+  fixed-ports:
+    build:
+      context: .
+      dockerfile: Dockerfile.fixed
+    container_name: fixed-exposed-ports
+    ports:
+      - "8082:8080"

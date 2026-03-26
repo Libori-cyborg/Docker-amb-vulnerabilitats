@@ -1,0 +1,22 @@
+# Docker Compose per comparar hardcoded-credentials vulnerable vs fixed
+version: '3.8'
+
+services:
+  vulnerable-credentials:
+    build:
+      context: .
+      dockerfile: Dockerfile.vulnerable
+    container_name: vuln-hardcoded-credentials
+    ports:
+      - "8083:8080"
+
+  fixed-credentials:
+    build:
+      context: .
+      dockerfile: Dockerfile.fixed
+    container_name: fixed-hardcoded-credentials
+    ports:
+      - "8084:8080"
+    # Credencials passades en temps d'execució via fitxer .env
+    env_file:
+      - .env

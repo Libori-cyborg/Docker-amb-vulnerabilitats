@@ -1,0 +1,16 @@
+# Fixed: contenidor amb usuari no privilegiat
+FROM ubuntu:20.04
+
+RUN apt-get update && apt-get install -y python3
+
+# Creem un usuari sense privilegis
+RUN useradd -m -u 1001 appuser
+
+WORKDIR /app
+COPY . .
+RUN chown -R appuser:appuser /app
+
+# Canviem a l'usuari no privilegiat
+USER appuser
+
+CMD ["python3", "-m", "http.server", "8080"]
