@@ -13,7 +13,8 @@ ENV DB_NAME=produccio
 ENV API_KEY=a3f5c8e2b1d4f7a9c2e5b8d1f4a7c0e3
 
 # Credencials hardcodejades en un fitxer de configuració
-RUN echo "[database]" > /app/config.ini && \
+RUN mkdir -p /app && \
+    echo "[database]" > /app/config.ini && \
     echo "host=localhost" >> /app/config.ini && \
     echo "user=admin" >> /app/config.ini && \
     echo "password=SuperSecret123" >> /app/config.ini
