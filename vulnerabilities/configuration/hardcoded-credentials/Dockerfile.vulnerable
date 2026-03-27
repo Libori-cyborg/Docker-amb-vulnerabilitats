@@ -1,6 +1,8 @@
 # Vulnerable: credencials hardcodejades al Dockerfile
 FROM ubuntu:20.04
 
+ENV DEBIAN_FRONTEND=noninteractive
+
 RUN apt-get update && apt-get install -y mysql-server python3
 
 # Credencials visibles directament al Dockerfile
