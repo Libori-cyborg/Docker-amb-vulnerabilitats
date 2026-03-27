@@ -1,6 +1,8 @@
 # Fixed: versions actualitzades i imatge base moderna
 FROM ubuntu:22.04
 
+ENV DEBIAN_FRONTEND=noninteractive
+
 # Versions actuals amb pegats de seguretat aplicats
 RUN apt-get update && apt-get install -y \
     apache2 \

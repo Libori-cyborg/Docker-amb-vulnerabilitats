@@ -1,6 +1,8 @@
 # Vulnerable: versions obsoletes amb CVEs coneguts
 FROM ubuntu:18.04
 
+ENV DEBIAN_FRONTEND=noninteractive
+
 # Versions antigues amb vulnerabilitats conegudes
 RUN apt-get update && apt-get install -y \
     apache2=2.4.29* \
