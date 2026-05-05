@@ -1,0 +1,26 @@
+# Vulnerable: SSH amb root login i autenticacio per contrasenya feble
+FROM ubuntu:22.04
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update && apt-get install -y openssh-server
+
+# Configuracio vulnerable
+RUN cat > /etc/ssh/sshd_config << 'EOF'
+Port 22
+PermitRootLogin yes
+PasswordAuthentication yes
+PermitEmptyPasswords yes
+Protocol 2,1
+X11Forwarding yes
+MaxAuthTries 10
+EOF
+
+# Contrasenya root feble
+RUN echo 'root:root123' | chpasswd
+
+RUN mkdir -p /run/sshd
+
+EXPOSE 22
+
+CMD ["/usr/sbin/sshd", "-D"]

@@ -1,0 +1,22 @@
+# Vulnerable: MySQL amb credencials febles i acces remot obert
+FROM ubuntu:20.04
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update && apt-get install -y mysql-server
+
+# Configuracio vulnerable: acces remot sense restriccions
+RUN sed -i 's/bind-address.*/bind-address = 0.0.0.0/' /etc/mysql/mysql.conf.d/mysqld.cnf
+
+# Usuari root sense contrasenya i acces des de qualsevol host
+RUN service mysql start && \
+    mysql -e "ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password BY '';" && \
+    mysql -e "CREATE USER 'root'@'%' IDENTIFIED BY '';" && \
+    mysql -e "GRANT ALL PRIVILEGES ON *.* TO 'root'@'%' WITH GRANT OPTION;" && \
+    mysql -e "FLUSH PRIVILEGES;" && \
+    mysql -e "CREATE DATABASE dades_sensibles;" && \
+    mysql -e "USE dades_sensibles; CREATE TABLE usuaris (id INT, nom VARCHAR(50), contrasenya VARCHAR(50)); INSERT INTO usuaris VALUES (1, 'admin', 'admin123');"
+
+EXPOSE 3306
+
+CMD ["mysqld_safe"]

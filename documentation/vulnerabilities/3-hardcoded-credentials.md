@@ -1,12 +1,12 @@
 # Vulnerabilitat 3: Credencials Hardcodejades
 
-## 📌 Descripció Breu
+## Descripció Breu
 
 Les credencials hardcodejades es produeixen quan contrasenyes, claus API, tokens o altres secrets s'escriuen directament al codi font, Dockerfiles o fitxers de configuració que acaben al repositori. Qualsevol persona amb accés al repositori (o a la imatge Docker) pot obtenir aquestes credencials i usar-les per accedir a sistemes crítics.
 
 ---
 
-## 🎯 Objectius de Seguretat Afectats
+## Objectius de Seguretat Afectats
 
 - **Confidencialitat** → Credencials exposades permeten accés no autoritzat a bases de dades, APIs i serveis
 - **Integritat** → Un atacant pot modificar dades usant les credencials robades
@@ -14,7 +14,7 @@ Les credencials hardcodejades es produeixen quan contrasenyes, claus API, tokens
 
 ---
 
-## 🚨 Risc i Impacte
+## Risc i Impacte
 
 | Aspecte | Detall |
 |---|---|
@@ -29,7 +29,7 @@ Quan fas `docker history <imatge>` o `docker inspect`, es poden veure totes les 
 
 ---
 
-## 💻 Implementació Vulnerable
+## Implementació Vulnerable
 
 ```dockerfile
 # arnaulo - Vulnerable: credencials hardcodejades al Dockerfile
@@ -37,14 +37,14 @@ FROM ubuntu:20.04
 
 RUN apt-get update && apt-get install -y mysql-server python3
 
-# ❌ Credencials visibles directament al Dockerfile
+# Credencials visibles directament al Dockerfile
 ENV DB_HOST=localhost
 ENV DB_USER=admin
 ENV DB_PASSWORD=SuperSecret123
 ENV DB_NAME=produccio
 ENV API_KEY=a3f5c8e2b1d4f7a9c2e5b8d1f4a7c0e3
 
-# ❌ Credencials hardcodejades en un fitxer de configuració
+# Credencials hardcodejades en un fitxer de configuració
 RUN echo "[database]" > /app/config.ini && \
     echo "host=localhost" >> /app/config.ini && \
     echo "user=admin" >> /app/config.ini && \
@@ -78,7 +78,7 @@ docker inspect vuln-credentials | grep -A5 "Env"
 
 ---
 
-## 🔓 Com Explotar
+## Com Explotar
 
 ### Pas 1: Accedir a la imatge del registre
 ```bash
@@ -118,7 +118,7 @@ curl -H "Authorization: Bearer a3f5c8e2b1d4f7a9c2e5b8d1f4a7c0e3" \
 
 ---
 
-## ✅ Solució — `Dockerfile.fixed`
+## Solució — `Dockerfile.fixed`
 
 ```dockerfile
 # arnaulo - Fixed: credencials gestionades amb variables d'entorn externes
@@ -130,7 +130,7 @@ RUN useradd -m -u 1001 appuser
 
 WORKDIR /app
 
-# ✅ Les variables es defineixen sense cap valor sensible
+# Les variables es defineixen sense cap valor sensible
 ENV DB_HOST=""
 ENV DB_USER=""
 ENV DB_PASSWORD=""
@@ -147,7 +147,7 @@ CMD ["python3", "-m", "http.server", "8080"]
 
 ### Fitxer `.env` (mai al repositori)
 ```bash
-# ✅ Les credencials reals van aquí, fora del codi
+# Les credencials reals van aquí, fora del codi
 DB_HOST=localhost
 DB_USER=admin
 DB_PASSWORD=SuperSecret123
@@ -191,7 +191,7 @@ docker exec fixed-hardcoded-credentials env | grep DB_
 
 ---
 
-## 📖 Explicació de la Solució
+## Explicació de la Solució
 
 | Mesura | Funció |
 |---|---|
@@ -213,7 +213,7 @@ Per a entorns de producció real es recomana usar gestors de secrets dedicats:
 
 ---
 
-## 🛡️ Bones Pràctiques
+## Bones Pràctiques
 
 - **Mai** escriure credencials al `Dockerfile`, codi font o fitxers de configuració
 - Afegir **sempre** `.env` al `.gitignore` abans del primer commit
@@ -224,7 +224,7 @@ Per a entorns de producció real es recomana usar gestors de secrets dedicats:
 
 ---
 
-## 🔗 Referències
+## Referències
 
 - [CWE-798: Use of Hard-coded Credentials](https://cwe.mitre.org/data/definitions/798.html)
 - [Docker Secrets](https://docs.docker.com/engine/swarm/secrets/)

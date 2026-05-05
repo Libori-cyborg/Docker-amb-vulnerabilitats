@@ -1,12 +1,12 @@
 # Vulnerabilitat 1: Execució com a Root
 
-## 📌 Descripció Breu
+## Descripció Breu
 
 Per defecte, els processos dins d'un contenidor Docker s'executen com a **root (UID 0)** si no s'especifica cap usuari al Dockerfile. Això significa que qualsevol procés compromès dins del contenidor tindrà privilegis màxims dins del sistema de fitxers del contenidor i, en alguns escenaris, pot arribar a afectar el sistema host.
 
 ---
 
-## 🎯 Objectius de Seguretat Afectats
+## Objectius de Seguretat Afectats
 
 - **Confidencialitat** → Un atacant pot llegir fitxers sensibles del contenidor
 - **Integritat** → Pot modificar fitxers de sistema, binaris o configuracions
@@ -14,7 +14,7 @@ Per defecte, els processos dins d'un contenidor Docker s'executen com a **root (
 
 ---
 
-## 🚨 Risc i Impacte
+## Risc i Impacte
 
 | Aspecte | Detall |
 |---|---|
@@ -32,7 +32,7 @@ Si una aplicació web corre com a root i té una vulnerabilitat de Remote Code E
 
 ---
 
-## 💻 Implementació Vulnerable
+## Implementació Vulnerable
 
 ```dockerfile
 # arnaulo - Vulnerable: contenidor executant-se com a root
@@ -43,7 +43,7 @@ RUN apt-get update && apt-get install -y python3
 WORKDIR /app
 COPY . .
 
-# ❌ No s'especifica cap usuari → corre com a root per defecte
+# No s'especifica cap usuari → corre com a root per defecte
 CMD ["python3", "-m", "http.server", "8080"]
 ```
 
@@ -72,7 +72,7 @@ uid=0(root) gid=0(root) groups=0(root)
 
 ---
 
-## 🔓 Com Explotar
+## Com Explotar
 
 ### Pas 1: Confirmar que corre com a root
 ```bash
@@ -101,7 +101,7 @@ docker exec -it vuln-running-as-root ls /host/etc/
 
 ---
 
-## ✅ Solució — `Dockerfile.fixed`
+## Solució — `Dockerfile.fixed`
 
 ```dockerfile
 # arnaulo - Fixed: contenidor amb usuari no privilegiat
@@ -109,16 +109,16 @@ FROM ubuntu:20.04
 
 RUN apt-get update && apt-get install -y python3
 
-# ✅ Creem un usuari dedicat sense privilegis
+# Creem un usuari dedicat sense privilegis
 RUN useradd -m -u 1001 appuser
 
 WORKDIR /app
 COPY . .
 
-# ✅ Assignem propietat dels fitxers a l'usuari
+# Assignem propietat dels fitxers a l'usuari
 RUN chown -R appuser:appuser /app
 
-# ✅ Canviem a l'usuari no privilegiat
+# Canviem a l'usuari no privilegiat
 USER appuser
 
 CMD ["python3", "-m", "http.server", "8080"]
@@ -148,7 +148,7 @@ uid=1001(appuser) gid=1001(appuser) groups=1001(appuser)
 
 ---
 
-## 📖 Explicació de la Solució
+## Explicació de la Solució
 
 | Directiva | Funció |
 |---|---|
@@ -160,7 +160,7 @@ L'ús d'un **UID numèric fix (1001)** és una bona pràctica perquè garanteix 
 
 ---
 
-## 🛡️ Bones Pràctiques
+## Bones Pràctiques
 
 - Sempre especificar `USER` al Dockerfile abans del `CMD` o `ENTRYPOINT`
 - Usar UIDs numèrics en lloc de noms (`USER 1001` en lloc de `USER appuser`)
@@ -170,7 +170,7 @@ L'ús d'un **UID numèric fix (1001)** és una bona pràctica perquè garanteix 
 
 ---
 
-## 🔗 Referències
+## Referències
 
 - [Docker Security - Non-root users](https://docs.docker.com/develop/develop-images/dockerfile_best-practices/#user)
 - [CWE-250: Execution with Unnecessary Privileges](https://cwe.mitre.org/data/definitions/250.html)

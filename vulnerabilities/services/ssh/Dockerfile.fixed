@@ -1,0 +1,32 @@
+# Fixed: SSH amb configuracio segura
+FROM ubuntu:22.04
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update && apt-get install -y openssh-server
+
+RUN useradd -m -u 1001 sshuser && \
+    echo 'sshuser:C0mpl3x_P4ss!' | chpasswd
+
+# Configuracio segura
+RUN cat > /etc/ssh/sshd_config << 'EOF'
+Port 22
+Protocol 2
+PermitRootLogin no
+PasswordAuthentication no
+PubkeyAuthentication yes
+PermitEmptyPasswords no
+X11Forwarding no
+MaxAuthTries 3
+LoginGraceTime 30
+AllowUsers sshuser
+EOF
+
+RUN mkdir -p /run/sshd && \
+    mkdir -p /home/sshuser/.ssh && \
+    chmod 700 /home/sshuser/.ssh && \
+    chown -R sshuser:sshuser /home/sshuser/.ssh
+
+EXPOSE 22
+
+CMD ["/usr/sbin/sshd", "-D"]

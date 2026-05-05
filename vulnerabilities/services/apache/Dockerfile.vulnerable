@@ -1,0 +1,40 @@
+# Vulnerable: Apache 2.4.49 - CVE-2021-41773 Path Traversal + RCE
+FROM ubuntu:20.04
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Instal·lar dependències per compilar Apache 2.4.49
+RUN apt-get update && apt-get install -y \
+    wget \
+    build-essential \
+    libpcre3-dev \
+    libssl-dev \
+    zlib1g-dev \
+    libexpat1-dev \
+    libapr1-dev \
+    libaprutil1-dev
+
+# Descarregar i compilar Apache 2.4.49 vulnerable
+RUN wget https://archive.apache.org/dist/httpd/httpd-2.4.49.tar.gz && \
+    tar -xzf httpd-2.4.49.tar.gz && \
+    cd httpd-2.4.49 && \
+    ./configure --enable-cgi --enable-cgid --with-mpm=prefork && \
+    make && make install
+
+# Configurar CGI per permetre RCE
+RUN mkdir -p /usr/local/apache2/cgi-bin && \
+    echo '#!/bin/bash' > /usr/local/apache2/cgi-bin/test.sh && \
+    echo 'echo "Content-Type: text/plain"' >> /usr/local/apache2/cgi-bin/test.sh && \
+    echo 'echo ""' >> /usr/local/apache2/cgi-bin/test.sh && \
+    echo 'echo "CGI actiu"' >> /usr/local/apache2/cgi-bin/test.sh && \
+    chmod +x /usr/local/apache2/cgi-bin/test.sh
+
+# Configuracio vulnerable: Require all granted sense restriccions
+RUN echo '<Directory />' >> /usr/local/apache2/conf/httpd.conf && \
+    echo '    Options +FollowSymLinks +Indexes' >> /usr/local/apache2/conf/httpd.conf && \
+    echo '    Require all granted' >> /usr/local/apache2/conf/httpd.conf && \
+    echo '</Directory>' >> /usr/local/apache2/conf/httpd.conf
+
+EXPOSE 80
+
+CMD ["/usr/local/apache2/bin/httpd", "-D", "FOREGROUND"]

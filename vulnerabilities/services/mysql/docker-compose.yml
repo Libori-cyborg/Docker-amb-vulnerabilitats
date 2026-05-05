@@ -1,0 +1,23 @@
+# Docker Compose - MySQL credencials febles
+version: '3.8'
+
+services:
+  vulnerable-mysql:
+    build:
+      context: .
+      dockerfile: Dockerfile.vulnerable
+    container_name: vuln-mysql
+    ports:
+      - "3308:3306"
+
+  fixed-mysql:
+    build:
+      context: .
+      dockerfile: Dockerfile.fixed
+    container_name: fixed-mysql
+    ports:
+      - "127.0.0.1:3309:3306"
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true

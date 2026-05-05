@@ -1,0 +1,26 @@
+# Fixed: Apache versio actualitzada i configuracio segura
+FROM ubuntu:22.04
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update && apt-get install -y apache2
+
+RUN useradd -m -u 1001 appuser
+
+# Desactivar CGI i llistat de directoris
+RUN a2dismod cgi cgid autoindex status
+
+# Configuracio segura
+RUN echo 'ServerTokens Prod' >> /etc/apache2/apache2.conf && \
+    echo 'ServerSignature Off' >> /etc/apache2/apache2.conf && \
+    echo 'TraceEnable Off' >> /etc/apache2/apache2.conf
+
+# Restriccio d'acces al sistema de fitxers
+RUN echo '<Directory />' >> /etc/apache2/apache2.conf && \
+    echo '    Options None' >> /etc/apache2/apache2.conf && \
+    echo '    Require all denied' >> /etc/apache2/apache2.conf && \
+    echo '</Directory>' >> /etc/apache2/apache2.conf
+
+EXPOSE 80
+
+CMD ["apache2ctl", "-D", "FOREGROUND"]

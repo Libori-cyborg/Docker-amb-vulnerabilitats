@@ -1,0 +1,26 @@
+# Docker Compose - vsftpd CVE-2011-2523
+version: '3.8'
+
+services:
+  vulnerable-ftp:
+    build:
+      context: .
+      dockerfile: Dockerfile.vulnerable
+    container_name: vuln-ftp
+    ports:
+      - "2121:21"
+
+  fixed-ftp:
+    build:
+      context: .
+      dockerfile: Dockerfile.fixed
+    container_name: fixed-ftp
+    ports:
+      - "2122:21"
+      - "40000-40100:40000-40100"
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE
+    security_opt:
+      - no-new-privileges:true

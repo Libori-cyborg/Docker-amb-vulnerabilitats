@@ -1,0 +1,37 @@
+# Fixed: Nginx amb configuracio segura
+FROM ubuntu:22.04
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update && apt-get install -y nginx
+
+RUN useradd -m -u 1001 appuser
+
+# Configuracio segura
+RUN cat > /etc/nginx/sites-available/default << 'EOF'
+server {
+    listen 80;
+    root /var/www/html;
+
+    # Amagar versio del servidor
+    server_tokens off;
+
+    location / {
+        # Directory listing desactivat
+        autoindex off;
+        try_files $uri $uri/ =404;
+    }
+
+    # Bloquejar acces a fitxers sensibles
+    location ~ /\.(conf|env|git|sql|bak|htaccess) {
+        deny all;
+        return 404;
+    }
+}
+EOF
+
+RUN echo "<h1>Hola</h1>" > /var/www/html/index.html
+
+EXPOSE 80
+
+CMD ["nginx", "-g", "daemon off;"]

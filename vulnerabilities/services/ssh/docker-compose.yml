@@ -1,0 +1,25 @@
+# Docker Compose - SSH configuracio insegura
+version: '3.8'
+
+services:
+  vulnerable-ssh:
+    build:
+      context: .
+      dockerfile: Dockerfile.vulnerable
+    container_name: vuln-ssh
+    ports:
+      - "2223:22"
+
+  fixed-ssh:
+    build:
+      context: .
+      dockerfile: Dockerfile.fixed
+    container_name: fixed-ssh
+    ports:
+      - "2224:22"
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE
+    security_opt:
+      - no-new-privileges:true

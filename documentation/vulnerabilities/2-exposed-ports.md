@@ -1,12 +1,12 @@
 # Vulnerabilitat 2: Exposició Innecessària de Ports
 
-## 📌 Descripció Breu
+## Descripció Breu
 
 Quan un contenidor Docker exposa més ports dels estrictament necessaris per al seu funcionament, s'augmenta la **superfície d'atac** del sistema. Cada port obert és una porta d'entrada potencial per a un atacant. Aquesta vulnerabilitat és especialment perillosa quan s'exposen ports de serveis sensibles com bases de dades (3306), SSH (22) o panells d'administració.
 
 ---
 
-## 🎯 Objectius de Seguretat Afectats
+## Objectius de Seguretat Afectats
 
 - **Confidencialitat** → Ports de bases de dades exposats permeten accés directe a dades sensibles
 - **Integritat** → Accés SSH no controlat pot permetre modificacions al sistema
@@ -14,7 +14,7 @@ Quan un contenidor Docker exposa més ports dels estrictament necessaris per al 
 
 ---
 
-## 🚨 Risc i Impacte
+## Risc i Impacte
 
 | Aspecte | Detall |
 |---|---|
@@ -36,7 +36,7 @@ Quan un contenidor Docker exposa més ports dels estrictament necessaris per al 
 
 ---
 
-## 💻 Implementació Vulnerable
+## Implementació Vulnerable
 
 ```dockerfile
 # arnaulo - Vulnerable: exposició innecessària de ports
@@ -47,7 +47,7 @@ RUN apt-get update && apt-get install -y \
     mysql-server \
     ssh
 
-# ❌ S'exposen tots els ports innecessàriament
+# S'exposen tots els ports innecessàriament
 EXPOSE 22
 EXPOSE 3306
 EXPOSE 8080
@@ -82,7 +82,7 @@ nmap -p 8081,2222,3307 localhost
 
 ---
 
-## 🔓 Com Explotar
+## Com Explotar
 
 ### Pas 1: Descobrir ports oberts
 ```bash
@@ -119,7 +119,7 @@ mysqldump -h localhost -P 3307 -u root --all-databases > dump.sql
 
 ---
 
-## ✅ Solució — `Dockerfile.fixed`
+## Solució — `Dockerfile.fixed`
 
 ```dockerfile
 # arnaulo - Fixed: només s'exposa el port necessari
@@ -135,7 +135,7 @@ RUN chown -R appuser:appuser /app
 
 USER appuser
 
-# ✅ Només s'exposa el port que realment necessita l'aplicació
+# Només s'exposa el port que realment necessita l'aplicació
 EXPOSE 8080
 
 CMD ["python3", "-m", "http.server", "8080"]
@@ -165,7 +165,7 @@ nmap -p 2222,3307 localhost
 
 ---
 
-## 📖 Explicació de la Solució
+## Explicació de la Solució
 
 | Mesura | Funció |
 |---|---|
@@ -183,10 +183,10 @@ Quan dos contenidors necessiten comunicar-se (ex. app + base de dades), **no cal
 services:
   app:
     ports:
-      - "8080:8080"  # ✅ Només l'app és accessible des de fora
+      - "8080:8080"  # Només l'app és accessible des de fora
   
   database:
-    # ❌ NO posar ports aquí
+    # NO posar ports aquí
     # La base de dades és accessible internament per nom de servei
 ```
 
@@ -194,7 +194,7 @@ L'app es connecta a la base de dades usant `database:3306` internament, sense ex
 
 ---
 
-## 🛡️ Bones Pràctiques
+## Bones Pràctiques
 
 - **Principi de mínim privilegi de xarxa**: exposar només els ports estrictament necessaris
 - Usar **xarxes internes de Docker** per comunicació entre contenidors
@@ -205,7 +205,7 @@ L'app es connecta a la base de dades usant `database:3306` internament, sense ex
 
 ---
 
-## 🔗 Referències
+## Referències
 
 - [Docker Networking](https://docs.docker.com/network/)
 - [CWE-16: Configuration](https://cwe.mitre.org/data/definitions/16.html)

@@ -1,0 +1,37 @@
+# Vulnerable: vsftpd 2.3.4 - CVE-2011-2523 (backdoor)
+FROM ubuntu:20.04
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update && apt-get install -y \
+    wget \
+    build-essential \
+    libpam0g-dev \
+    libcap-dev
+
+# Compilar vsftpd 2.3.4 amb el backdoor conegut
+RUN wget https://security.appspot.com/downloads/vsftpd-2.3.4.tar.gz && \
+    tar -xzf vsftpd-2.3.4.tar.gz && \
+    cd vsftpd-2.3.4 && \
+    make && \
+    cp vsftpd /usr/local/sbin/
+
+# Configuracio vulnerable
+RUN cat > /etc/vsftpd.conf << 'EOF'
+listen=YES
+anonymous_enable=YES
+local_enable=YES
+write_enable=YES
+anon_upload_enable=YES
+anon_mkdir_write_enable=YES
+dirmessage_enable=YES
+xferlog_enable=YES
+EOF
+
+RUN mkdir -p /var/ftp/pub && \
+    chmod 777 /var/ftp/pub && \
+    useradd -d /var/ftp -s /bin/false ftp || true
+
+EXPOSE 21
+
+CMD ["/usr/local/sbin/vsftpd", "/etc/vsftpd.conf"]
