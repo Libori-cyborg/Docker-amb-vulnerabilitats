@@ -1,0 +1,23 @@
+# Docker Compose - Redis sense autenticació
+version: '3.8'
+
+services:
+  vulnerable-redis:
+    build:
+      context: .
+      dockerfile: Dockerfile.vulnerable
+    container_name: vuln-redis
+    ports:
+      - "6380:6379"
+
+  fixed-redis:
+    build:
+      context: .
+      dockerfile: Dockerfile.fixed
+    container_name: fixed-redis
+    ports:
+      - "127.0.0.1:6381:6379"
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true

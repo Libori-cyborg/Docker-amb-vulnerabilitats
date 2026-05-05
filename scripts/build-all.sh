@@ -44,25 +44,23 @@ build_image() {
     echo ""
 }
 
-echo "== Vulnerabilitats de configuracio Docker =="
+echo "== Vulnerabilitats de Xarxa =="
 echo ""
-build_image "running-as-root"           "configuration/running-as-root"
-build_image "exposed-ports"             "network/exposed-ports"
-build_image "hardcoded-credentials"     "configuration/hardcoded-credentials"
-build_image "obsolete-versions"         "configuration/obsolete-versions"
+build_image "apache"  "network/apache"
+build_image "ftp"     "network/ftp"
+build_image "redis"   "network/redis"
+
+echo "== Vulnerabilitats de Configuracio de Serveis =="
+echo ""
+build_image "mysql"   "configuration/mysql"
+build_image "nginx"   "configuration/nginx"
+build_image "ssh"     "configuration/ssh"
+
+echo "== Vulnerabilitats de Contenidor/Host =="
+echo ""
 build_image "no-resource-limits"        "container-host/no-resource-limits"
 build_image "unnecessary-capabilities"  "container-host/unnecessary-capabilities"
 build_image "dangerous-mounts"          "container-host/dangerous-mounts"
-build_image "unencrypted-communication" "network/unencrypted-communication"
-build_image "insecure-network-config"   "network/insecure-network-config"
-
-echo "== Vulnerabilitats de serveis =="
-echo ""
-build_image "apache"  "services/apache"
-build_image "nginx"   "services/nginx"
-build_image "mysql"   "services/mysql"
-build_image "ssh"     "services/ssh"
-build_image "ftp"     "services/ftp"
 
 echo "=== Build finalitzat ==="
 echo ""

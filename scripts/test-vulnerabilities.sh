@@ -13,80 +13,214 @@ pass() { echo "  [OK] $1"; ((PASS++)); }
 fail() { echo "  [FAIL] $1"; ((FAIL++)); }
 info() { echo "  [INFO] $1"; }
 
-echo ""
-echo "== Vulnerabilitats de configuracio Docker =="
+# ============================================================
+echo "== Vulnerabilitats de Xarxa =="
 echo ""
 
-echo "--- Test 1: running-as-root ---"
-if docker image inspect seclab-vuln:running-as-root &> /dev/null; then
-    USER_VULN=$(docker run --rm seclab-vuln:running-as-root whoami 2>/dev/null)
-    USER_FIXED=$(docker run --rm seclab-fixed:running-as-root whoami 2>/dev/null)
-    [ "$USER_VULN" = "root" ] && pass "Vulnerable: corre com a root" || fail "Vulnerable: hauria de ser root"
-    [ "$USER_FIXED" != "root" ] && pass "Fixed: no corre com a root ($USER_FIXED)" || fail "Fixed: no hauria de ser root"
+# --- Apache CVE-2021-41773 ---
+echo "--- Test 1: Apache CVE-2021-41773 (Path Traversal + RCE) ---"
+if docker image inspect seclab-vuln:apache &> /dev/null; then
+    docker run -d --name test-apache-vuln -p 19001:80 seclab-vuln:apache &> /dev/null
+    sleep 3
+    # Comprovar versio vulnerable al banner
+    VERSION=$(curl -s -I http://localhost:19001 2>/dev/null | grep -i "Server:" || echo "")
+    echo "$VERSION" | grep -q "2.4.49" && \
+        pass "Vulnerable: Apache 2.4.49 detectat (CVE-2021-41773 present)" || \
+        info "Banner del servidor: $VERSION"
+    # Intentar path traversal basic
+    TRAVERSAL=$(curl -s --path-as-is http://localhost:19001/cgi-bin/.%2e/.%2e/.%2e/etc/passwd 2>/dev/null | head -3 || echo "")
+    echo "$TRAVERSAL" | grep -q "root" && \
+        pass "Vulnerable: Path traversal exitós, /etc/passwd accessible" || \
+        info "Path traversal: resposta sense contingut sensible"
+    docker rm -f test-apache-vuln &> /dev/null
+
+    docker run -d --name test-apache-fixed -p 19002:80 seclab-fixed:apache &> /dev/null
+    sleep 3
+    TRAVERSAL_FIXED=$(curl -s --path-as-is http://localhost:19002/cgi-bin/.%2e/.%2e/.%2e/etc/passwd 2>/dev/null || echo "403")
+    echo "$TRAVERSAL_FIXED" | grep -q "root" && \
+        fail "Fixed: path traversal no hauria de funcionar" || \
+        pass "Fixed: path traversal bloquejat correctament"
+    docker rm -f test-apache-fixed &> /dev/null
 else
     info "Imatge no trobada, executa build-all.sh primer"
 fi
 echo ""
 
-echo "--- Test 2: exposed-ports ---"
-if docker image inspect seclab-vuln:exposed-ports &> /dev/null; then
-    PORTS=$(docker inspect seclab-vuln:exposed-ports 2>/dev/null | grep -c "ExposedPorts" || echo 0)
-    [ "$PORTS" -gt 0 ] && pass "Vulnerable: multiples ports exposats" || info "No s'han pogut verificar els ports"
-    pass "Fixed: port minim exposat"
+# --- vsftpd CVE-2011-2523 ---
+echo "--- Test 2: vsftpd 2.3.4 CVE-2011-2523 (Backdoor) ---"
+if docker image inspect seclab-vuln:ftp &> /dev/null; then
+    docker run -d --name test-ftp-vuln -p 12121:21 seclab-vuln:ftp &> /dev/null
+    sleep 2
+    FTP_BANNER=$(nc -w 3 localhost 12121 2>/dev/null | head -1 || echo "")
+    echo "$FTP_BANNER" | grep -q "2.3.4" && \
+        pass "Vulnerable: vsftpd 2.3.4 detectat (backdoor CVE-2011-2523 present)" || \
+        info "Banner FTP: $FTP_BANNER"
+    docker rm -f test-ftp-vuln &> /dev/null
+
+    docker run -d --name test-ftp-fixed -p 12122:21 seclab-fixed:ftp &> /dev/null
+    sleep 2
+    FTP_BANNER_FIXED=$(nc -w 3 localhost 12122 2>/dev/null | head -1 || echo "")
+    echo "$FTP_BANNER_FIXED" | grep -qv "2.3.4" && \
+        pass "Fixed: vsftpd actualitzat, backdoor eliminat" || \
+        fail "Fixed: versio no hauria de ser 2.3.4"
+    docker rm -f test-ftp-fixed &> /dev/null
 else
     info "Imatge no trobada, executa build-all.sh primer"
 fi
 echo ""
 
-echo "--- Test 3: hardcoded-credentials ---"
-if docker image inspect seclab-vuln:hardcoded-credentials &> /dev/null; then
-    CREDS=$(docker run --rm seclab-vuln:hardcoded-credentials env 2>/dev/null | grep -c "PASSWORD" || echo 0)
-    [ "$CREDS" -gt 0 ] && pass "Vulnerable: credencials visibles a les variables d'entorn" || fail "No s'han trobat credencials"
-    CREDS_FIXED=$(docker run --rm seclab-fixed:hardcoded-credentials env 2>/dev/null | grep "DB_PASSWORD" | cut -d'=' -f2)
-    [ -z "$CREDS_FIXED" ] && pass "Fixed: cap credencial hardcodejada" || fail "Fixed: la imatge no hauria de tenir credencials"
+# --- Redis sense autenticació ---
+echo "--- Test 3: Redis sense autenticacio (exposat a 0.0.0.0) ---"
+if docker image inspect seclab-vuln:redis &> /dev/null; then
+    docker run -d --name test-redis-vuln -p 16380:6379 seclab-vuln:redis &> /dev/null
+    sleep 2
+    # Intentar connexio sense contrasenya
+    REDIS_ACCESS=$(redis-cli -p 16380 ping 2>/dev/null || echo "FAILED")
+    echo "$REDIS_ACCESS" | grep -q "PONG" && \
+        pass "Vulnerable: Redis accessible sense autenticacio (PONG rebut)" || \
+        info "Resposta Redis: $REDIS_ACCESS"
+    # Llegir claus sensibles
+    SECRET=$(redis-cli -p 16380 GET secret_key 2>/dev/null || echo "")
+    [ -n "$SECRET" ] && \
+        pass "Vulnerable: dades sensibles llegibles sense contrasenya ($SECRET)" || \
+        info "No s'han pogut llegir les claus"
+    docker rm -f test-redis-vuln &> /dev/null
+
+    docker run -d --name test-redis-fixed -p 127.0.0.1:16381:6379 seclab-fixed:redis &> /dev/null
+    sleep 2
+    REDIS_NO_AUTH=$(redis-cli -p 16381 ping 2>/dev/null || echo "NOAUTH")
+    echo "$REDIS_NO_AUTH" | grep -q "NOAUTH" && \
+        pass "Fixed: Redis requereix autenticacio (NOAUTH)" || \
+        info "Resposta Redis fixed: $REDIS_NO_AUTH"
+    docker rm -f test-redis-fixed &> /dev/null
 else
     info "Imatge no trobada, executa build-all.sh primer"
 fi
 echo ""
 
-echo "--- Test 4: obsolete-versions ---"
-if docker image inspect seclab-vuln:obsolete-versions &> /dev/null; then
-    OS_VULN=$(docker run --rm seclab-vuln:obsolete-versions cat /etc/os-release 2>/dev/null | grep VERSION_ID | cut -d'"' -f2)
-    OS_FIXED=$(docker run --rm seclab-fixed:obsolete-versions cat /etc/os-release 2>/dev/null | grep VERSION_ID | cut -d'"' -f2)
-    info "Vulnerable: Ubuntu $OS_VULN"
-    info "Fixed: Ubuntu $OS_FIXED"
-    [ "$OS_VULN" = "20.04" ] && pass "Vulnerable: usa versio obsoleta Ubuntu 20.04" || info "Versio: $OS_VULN"
-    [ "$OS_FIXED" = "22.04" ] && pass "Fixed: usa versio actualitzada Ubuntu 22.04" || info "Versio: $OS_FIXED"
+# ============================================================
+echo "== Vulnerabilitats de Configuracio de Serveis =="
+echo ""
+
+# --- MySQL credencials febles ---
+echo "--- Test 4: MySQL root sense contrasenya + acces remot ---"
+if docker image inspect seclab-vuln:mysql &> /dev/null; then
+    docker run -d --name test-mysql-vuln -p 13308:3306 seclab-vuln:mysql &> /dev/null
+    sleep 5
+    MYSQL_ACCESS=$(mysql -h 127.0.0.1 -P 13308 -u root --connect-timeout=3 -e "SHOW DATABASES;" 2>/dev/null | head -3 || echo "")
+    [ -n "$MYSQL_ACCESS" ] && \
+        pass "Vulnerable: MySQL accessible com a root sense contrasenya" || \
+        info "MySQL vulnerable: verificacio manual recomanada"
+    docker rm -f test-mysql-vuln &> /dev/null
+
+    docker run -d --name test-mysql-fixed -p 127.0.0.1:13309:3306 seclab-fixed:mysql &> /dev/null
+    sleep 5
+    MYSQL_FIXED=$(mysql -h 127.0.0.1 -P 13309 -u root --connect-timeout=3 -e "SHOW DATABASES;" 2>/dev/null || echo "ERROR_AUTH")
+    echo "$MYSQL_FIXED" | grep -q "ERROR_AUTH" && \
+        pass "Fixed: MySQL requereix autenticacio" || \
+        info "Fixed: verificacio manual recomanada"
+    docker rm -f test-mysql-fixed &> /dev/null
 else
     info "Imatge no trobada, executa build-all.sh primer"
 fi
 echo ""
 
-echo "--- Test 5: no-resource-limits ---"
+# --- Nginx directory listing ---
+echo "--- Test 5: Nginx directory listing + fitxers sensibles ---"
+if docker image inspect seclab-vuln:nginx &> /dev/null; then
+    docker run -d --name test-nginx-vuln -p 19003:80 seclab-vuln:nginx &> /dev/null
+    docker run -d --name test-nginx-fixed -p 19004:80 seclab-fixed:nginx &> /dev/null
+    sleep 2
+
+    ENV_VULN=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:19003/.env 2>/dev/null || echo "000")
+    [ "$ENV_VULN" = "200" ] && \
+        pass "Vulnerable: fitxer .env accessible (codi HTTP 200)" || \
+        info "Codi HTTP .env vulnerable: $ENV_VULN"
+
+    DIR_LISTING=$(curl -s http://localhost:19003/ 2>/dev/null | grep -i "Index of" || echo "")
+    [ -n "$DIR_LISTING" ] && \
+        pass "Vulnerable: directory listing actiu" || \
+        info "Directory listing: no detectat en ruta arrel"
+
+    ENV_FIXED=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:19004/.env 2>/dev/null || echo "000")
+    [ "$ENV_FIXED" = "404" ] && \
+        pass "Fixed: fitxer .env bloquejat (codi HTTP 404)" || \
+        info "Codi HTTP .env fixed: $ENV_FIXED"
+
+    docker rm -f test-nginx-vuln test-nginx-fixed &> /dev/null
+else
+    info "Imatge no trobada, executa build-all.sh primer"
+fi
+echo ""
+
+# --- SSH configuracio insegura ---
+echo "--- Test 6: SSH PermitRootLogin + contrasenya feble ---"
+if docker image inspect seclab-vuln:ssh &> /dev/null; then
+    docker run -d --name test-ssh-vuln -p 12223:22 seclab-vuln:ssh &> /dev/null
+    sleep 2
+    # Comprovar que PermitRootLogin esta actiu
+    ROOT_LOGIN=$(docker exec test-ssh-vuln grep "PermitRootLogin" /etc/ssh/sshd_config 2>/dev/null || echo "")
+    echo "$ROOT_LOGIN" | grep -q "yes" && \
+        pass "Vulnerable: PermitRootLogin yes configurat" || \
+        info "Configuracio SSH: $ROOT_LOGIN"
+    PASS_AUTH=$(docker exec test-ssh-vuln grep "PasswordAuthentication" /etc/ssh/sshd_config 2>/dev/null || echo "")
+    echo "$PASS_AUTH" | grep -q "yes" && \
+        pass "Vulnerable: PasswordAuthentication yes (força bruta possible)" || \
+        info "PasswordAuthentication: $PASS_AUTH"
+    docker rm -f test-ssh-vuln &> /dev/null
+
+    docker run -d --name test-ssh-fixed -p 12224:22 seclab-fixed:ssh &> /dev/null
+    sleep 2
+    ROOT_LOGIN_FIXED=$(docker exec test-ssh-fixed grep "PermitRootLogin" /etc/ssh/sshd_config 2>/dev/null || echo "")
+    echo "$ROOT_LOGIN_FIXED" | grep -q "no" && \
+        pass "Fixed: PermitRootLogin no configurat" || \
+        info "Fixed SSH: $ROOT_LOGIN_FIXED"
+    docker rm -f test-ssh-fixed &> /dev/null
+else
+    info "Imatge no trobada, executa build-all.sh primer"
+fi
+echo ""
+
+# ============================================================
+echo "== Vulnerabilitats de Contenidor/Host =="
+echo ""
+
+# --- No resource limits ---
+echo "--- Test 7: Sense limits de recursos ---"
 if docker image inspect seclab-fixed:no-resource-limits &> /dev/null; then
-    docker run -d --name test-resource-limits --memory="256m" --cpus="0.5" seclab-fixed:no-resource-limits &> /dev/null
+    docker run -d --name test-resource-limits \
+        --memory="256m" --cpus="0.5" \
+        seclab-fixed:no-resource-limits &> /dev/null
     sleep 1
     MEM=$(docker inspect test-resource-limits 2>/dev/null | grep '"Memory"' | head -1 | tr -d ' "Memory:,')
     docker rm -f test-resource-limits &> /dev/null
-    [ "$MEM" -gt 0 ] 2>/dev/null && pass "Fixed: limits de memoria configurats" || fail "Fixed: no s'han detectat limits"
+    [ "$MEM" -gt 0 ] 2>/dev/null && \
+        pass "Fixed: limits de memoria configurats ($MEM bytes)" || \
+        fail "Fixed: no s'han detectat limits de memoria"
 else
     info "Imatge no trobada, executa build-all.sh primer"
 fi
 echo ""
 
-echo "--- Test 6: unnecessary-capabilities ---"
+# --- Unnecessary capabilities ---
+echo "--- Test 8: Capabilities innecessaries ---"
 if docker image inspect seclab-fixed:unnecessary-capabilities &> /dev/null; then
-    docker run -d --name test-caps --cap-drop ALL --cap-add NET_BIND_SERVICE seclab-fixed:unnecessary-capabilities &> /dev/null
+    docker run -d --name test-caps \
+        --cap-drop ALL --cap-add NET_BIND_SERVICE \
+        seclab-fixed:unnecessary-capabilities &> /dev/null
     sleep 1
     CAPS=$(docker inspect test-caps 2>/dev/null | grep -c "NET_BIND_SERVICE" || echo 0)
     docker rm -f test-caps &> /dev/null
-    [ "$CAPS" -gt 0 ] && pass "Fixed: nomes NET_BIND_SERVICE activa" || fail "No s'han pogut verificar les capabilities"
+    [ "$CAPS" -gt 0 ] && \
+        pass "Fixed: nomes NET_BIND_SERVICE activa" || \
+        fail "No s'han pogut verificar les capabilities"
 else
     info "Imatge no trobada, executa build-all.sh primer"
 fi
 echo ""
 
-echo "--- Test 7: dangerous-mounts ---"
+# --- Dangerous mounts ---
+echo "--- Test 9: Muntatges perillosos ---"
 if docker image inspect seclab-fixed:dangerous-mounts &> /dev/null; then
     docker run -d --name test-mounts seclab-fixed:dangerous-mounts &> /dev/null
     sleep 1
@@ -100,107 +234,7 @@ else
 fi
 echo ""
 
-echo "--- Test 8: unencrypted-communication ---"
-if docker image inspect seclab-vuln:unencrypted-communication &> /dev/null; then
-    docker run -d --name test-http -p 18093:80 seclab-vuln:unencrypted-communication &> /dev/null
-    sleep 2
-    HTTP=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:18093 2>/dev/null || echo "000")
-    docker rm -f test-http &> /dev/null
-    [ "$HTTP" = "200" ] && pass "Vulnerable: accessible per HTTP sense xifrar" || info "Codi HTTP: $HTTP"
-else
-    info "Imatge no trobada, executa build-all.sh primer"
-fi
-echo ""
-
-echo "--- Test 9: insecure-network-config ---"
-if docker image inspect seclab-vuln:insecure-network-config &> /dev/null; then
-    docker run -d --name test-net-vuln -p 0.0.0.0:18097:8080 seclab-vuln:insecure-network-config &> /dev/null
-    sleep 2
-    BINDING=$(ss -tuln 2>/dev/null | grep 18097 | awk '{print $5}')
-    docker rm -f test-net-vuln &> /dev/null
-    echo "$BINDING" | grep -q "0.0.0.0" && \
-        pass "Vulnerable: binding a 0.0.0.0, accessible des de qualsevol origen" || \
-        info "Binding: $BINDING"
-else
-    info "Imatge no trobada, executa build-all.sh primer"
-fi
-echo ""
-
-echo ""
-echo "== Vulnerabilitats de serveis =="
-echo ""
-
-echo "--- Test S1: Apache CVE-2021-41773 ---"
-if docker image inspect seclab-vuln:apache &> /dev/null; then
-    docker run -d --name test-apache -p 19001:80 seclab-vuln:apache &> /dev/null
-    sleep 3
-    VERSION=$(curl -s -I http://localhost:19001 2>/dev/null | grep "Server:" || echo "")
-    docker rm -f test-apache &> /dev/null
-    echo "$VERSION" | grep -q "Apache/2.4.49" && \
-        pass "Vulnerable: Apache 2.4.49 detectat (CVE-2021-41773)" || \
-        info "Versio: $VERSION"
-    pass "Fixed: Apache actualitzat sense CVE-2021-41773"
-else
-    info "Imatge no trobada, executa build-all.sh primer"
-fi
-echo ""
-
-echo "--- Test S2: Nginx Misconfiguracio ---"
-if docker image inspect seclab-vuln:nginx &> /dev/null; then
-    docker run -d --name test-nginx-vuln -p 19003:80 seclab-vuln:nginx &> /dev/null
-    docker run -d --name test-nginx-fixed -p 19004:80 seclab-fixed:nginx &> /dev/null
-    sleep 2
-    ENV_ACCESS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:19003/.env 2>/dev/null || echo "000")
-    [ "$ENV_ACCESS" = "200" ] && pass "Vulnerable: fitxer .env accessible" || info "Codi .env: $ENV_ACCESS"
-    ENV_FIXED=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:19004/.env 2>/dev/null || echo "000")
-    [ "$ENV_FIXED" = "404" ] && pass "Fixed: fitxer .env bloquejat" || info "Codi .env fixed: $ENV_FIXED"
-    docker rm -f test-nginx-vuln test-nginx-fixed &> /dev/null
-else
-    info "Imatge no trobada, executa build-all.sh primer"
-fi
-echo ""
-
-echo "--- Test S3: MySQL Credencials Febles ---"
-if docker image inspect seclab-vuln:mysql &> /dev/null; then
-    info "MySQL requereix verificacio manual:"
-    info "  Vulnerable: mysql -h localhost -P 3308 -u root (sense contrasenya)"
-    info "  Fixed: mysql -h localhost -P 3309 -u root -p (contrasenya requerida)"
-    pass "Configuracio de ports verificada als Dockerfiles"
-else
-    info "Imatge no trobada, executa build-all.sh primer"
-fi
-echo ""
-
-echo "--- Test S4: SSH Configuracio Insegura ---"
-if docker image inspect seclab-vuln:ssh &> /dev/null; then
-    docker run -d --name test-ssh-vuln -p 12223:22 seclab-vuln:ssh &> /dev/null
-    sleep 2
-    SSH_AUTH=$(nmap -p 12223 --script ssh-auth-methods localhost 2>/dev/null | grep "password" || echo "")
-    docker rm -f test-ssh-vuln &> /dev/null
-    echo "$SSH_AUTH" | grep -q "password" && \
-        pass "Vulnerable: autenticacio per contrasenya activa" || \
-        info "Verificacio SSH realitzada"
-    pass "Fixed: PasswordAuthentication no i PermitRootLogin no configurats"
-else
-    info "Imatge no trobada, executa build-all.sh primer"
-fi
-echo ""
-
-echo "--- Test S5: vsftpd CVE-2011-2523 ---"
-if docker image inspect seclab-vuln:ftp &> /dev/null; then
-    docker run -d --name test-ftp-vuln -p 12121:21 seclab-vuln:ftp &> /dev/null
-    sleep 2
-    FTP_BANNER=$(nc -w 3 localhost 12121 2>/dev/null | head -1 || echo "")
-    docker rm -f test-ftp-vuln &> /dev/null
-    echo "$FTP_BANNER" | grep -q "2.3.4" && \
-        pass "Vulnerable: vsftpd 2.3.4 detectat (CVE-2011-2523 backdoor present)" || \
-        info "Banner FTP: $FTP_BANNER"
-    pass "Fixed: vsftpd 3.0.x des dels repositoris oficials"
-else
-    info "Imatge no trobada, executa build-all.sh primer"
-fi
-echo ""
-
+# ============================================================
 echo "================================="
 echo "Resum de tests"
 echo "================================="

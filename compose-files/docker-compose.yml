@@ -2,88 +2,156 @@
 # Aixeca tots els contenidors vulnerables i corregits del projecte
 version: '3.8'
 
-networks:
-  insecure-net:
-    driver: bridge
-  secure-net:
-    driver: bridge
-    internal: true
-
 services:
 
-  # Vulnerabilitat 1 - running-as-root
-  vuln-running-as-root:
+  # ============================================================
+  # VULNERABILITATS DE XARXA
+  # ============================================================
+
+  # Apache CVE-2021-41773 - Path Traversal + RCE
+  vuln-apache:
     build:
-      context: ../vulnerabilities/configuration/running-as-root
+      context: ../vulnerabilities/network/apache
       dockerfile: Dockerfile.vulnerable
-    container_name: vuln-running-as-root
+    container_name: vuln-apache
     ports:
-      - "8081:8080"
+      - "9001:80"
 
-  fixed-running-as-root:
+  fixed-apache:
     build:
-      context: ../vulnerabilities/configuration/running-as-root
+      context: ../vulnerabilities/network/apache
       dockerfile: Dockerfile.fixed
-    container_name: fixed-running-as-root
+    container_name: fixed-apache
     ports:
-      - "8082:8080"
+      - "9002:80"
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE
+    security_opt:
+      - no-new-privileges:true
 
-  # Vulnerabilitat 2 - exposed-ports
-  vuln-exposed-ports:
+  # vsftpd 2.3.4 - CVE-2011-2523 Backdoor
+  vuln-ftp:
     build:
-      context: ../vulnerabilities/network/exposed-ports
+      context: ../vulnerabilities/network/ftp
       dockerfile: Dockerfile.vulnerable
-    container_name: vuln-exposed-ports
+    container_name: vuln-ftp
     ports:
-      - "8083:8080"
-      - "2222:22"
-      - "3307:3306"
+      - "2121:21"
 
-  fixed-exposed-ports:
+  fixed-ftp:
     build:
-      context: ../vulnerabilities/network/exposed-ports
+      context: ../vulnerabilities/network/ftp
       dockerfile: Dockerfile.fixed
-    container_name: fixed-exposed-ports
+    container_name: fixed-ftp
     ports:
-      - "8084:8080"
+      - "2122:21"
+      - "40000-40100:40000-40100"
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE
+    security_opt:
+      - no-new-privileges:true
 
-  # Vulnerabilitat 3 - hardcoded-credentials
-  vuln-hardcoded-credentials:
+  # Redis sense autenticacio
+  vuln-redis:
     build:
-      context: ../vulnerabilities/configuration/hardcoded-credentials
+      context: ../vulnerabilities/network/redis
       dockerfile: Dockerfile.vulnerable
-    container_name: vuln-hardcoded-credentials
+    container_name: vuln-redis
     ports:
-      - "8085:8080"
+      - "6380:6379"
 
-  fixed-hardcoded-credentials:
+  fixed-redis:
     build:
-      context: ../vulnerabilities/configuration/hardcoded-credentials
+      context: ../vulnerabilities/network/redis
       dockerfile: Dockerfile.fixed
-    container_name: fixed-hardcoded-credentials
+    container_name: fixed-redis
     ports:
-      - "8086:8080"
-    env_file:
-      - ../vulnerabilities/configuration/hardcoded-credentials/.env
+      - "127.0.0.1:6381:6379"
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
 
-  # Vulnerabilitat 4 - obsolete-versions
-  vuln-obsolete-versions:
+  # ============================================================
+  # VULNERABILITATS DE CONFIGURACIO DE SERVEIS
+  # ============================================================
+
+  # MySQL root sense contrasenya + acces remot obert
+  vuln-mysql:
     build:
-      context: ../vulnerabilities/configuration/obsolete-versions
+      context: ../vulnerabilities/configuration/mysql
       dockerfile: Dockerfile.vulnerable
-    container_name: vuln-obsolete-versions
+    container_name: vuln-mysql
     ports:
-      - "8087:80"
+      - "3308:3306"
 
-  fixed-obsolete-versions:
+  fixed-mysql:
     build:
-      context: ../vulnerabilities/configuration/obsolete-versions
+      context: ../vulnerabilities/configuration/mysql
       dockerfile: Dockerfile.fixed
-    container_name: fixed-obsolete-versions
+    container_name: fixed-mysql
     ports:
-      - "8088:80"
+      - "127.0.0.1:3309:3306"
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
 
-  # Vulnerabilitat 5 - no-resource-limits
+  # Nginx directory listing + fitxers sensibles exposats
+  vuln-nginx:
+    build:
+      context: ../vulnerabilities/configuration/nginx
+      dockerfile: Dockerfile.vulnerable
+    container_name: vuln-nginx
+    ports:
+      - "9003:80"
+
+  fixed-nginx:
+    build:
+      context: ../vulnerabilities/configuration/nginx
+      dockerfile: Dockerfile.fixed
+    container_name: fixed-nginx
+    ports:
+      - "9004:80"
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE
+    security_opt:
+      - no-new-privileges:true
+
+  # SSH PermitRootLogin + contrasenya feble
+  vuln-ssh:
+    build:
+      context: ../vulnerabilities/configuration/ssh
+      dockerfile: Dockerfile.vulnerable
+    container_name: vuln-ssh
+    ports:
+      - "2223:22"
+
+  fixed-ssh:
+    build:
+      context: ../vulnerabilities/configuration/ssh
+      dockerfile: Dockerfile.fixed
+    container_name: fixed-ssh
+    ports:
+      - "2224:22"
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE
+    security_opt:
+      - no-new-privileges:true
+
+  # ============================================================
+  # VULNERABILITATS DE CONTENIDOR/HOST
+  # ============================================================
+
+  # Sense limits de recursos
   vuln-no-resource-limits:
     build:
       context: ../vulnerabilities/container-host/no-resource-limits
@@ -108,7 +176,7 @@ services:
           cpus: '0.25'
           memory: 128M
 
-  # Vulnerabilitat 6 - unnecessary-capabilities
+  # Capabilities innecessaries
   vuln-unnecessary-capabilities:
     build:
       context: ../vulnerabilities/container-host/unnecessary-capabilities
@@ -131,7 +199,7 @@ services:
     security_opt:
       - no-new-privileges:true
 
-  # Vulnerabilitat 7 - dangerous-mounts
+  # Muntatges perillosos
   vuln-dangerous-mounts:
     build:
       context: ../vulnerabilities/container-host/dangerous-mounts
@@ -152,42 +220,3 @@ services:
       - "8094:8080"
     volumes:
       - ./data:/app/data:ro
-
-  # Vulnerabilitat 8 - unencrypted-communication
-  vuln-unencrypted-communication:
-    build:
-      context: ../vulnerabilities/network/unencrypted-communication
-      dockerfile: Dockerfile.vulnerable
-    container_name: vuln-unencrypted-communication
-    ports:
-      - "8095:80"
-
-  fixed-unencrypted-communication:
-    build:
-      context: ../vulnerabilities/network/unencrypted-communication
-      dockerfile: Dockerfile.fixed
-    container_name: fixed-unencrypted-communication
-    ports:
-      - "8096:80"
-      - "8443:443"
-
-  # Vulnerabilitat 9 - insecure-network-config
-  vuln-insecure-network-config:
-    build:
-      context: ../vulnerabilities/network/insecure-network-config
-      dockerfile: Dockerfile.vulnerable
-    container_name: vuln-insecure-network-config
-    ports:
-      - "0.0.0.0:8097:8080"
-    networks:
-      - insecure-net
-
-  fixed-insecure-network-config:
-    build:
-      context: ../vulnerabilities/network/insecure-network-config
-      dockerfile: Dockerfile.fixed
-    container_name: fixed-insecure-network-config
-    ports:
-      - "127.0.0.1:8098:8080"
-    networks:
-      - secure-net

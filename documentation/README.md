@@ -6,22 +6,22 @@
 
 ## Descripció del Projecte
 
-DockerSecLab és un catàleg educatiu pràctic de vulnerabilitats en contenidors Docker. El projecte consisteix en la creació, reproducció i correcció de problemes de seguretat habituals en entorns containeritzats.
+DockerSecLab és un catàleg educatiu pràctic de vulnerabilitats reals en serveis desplegats amb Docker. El projecte consisteix en la reproducció i correcció de vulnerabilitats conegudes en serveis com Apache, vsftpd, Redis, MySQL, Nginx i SSH, a més de males pràctiques de configuració pròpies dels contenidors Docker.
 
-Per a cada vulnerabilitat seleccionada, es desenvolupa:
-- Un contenidor Docker **vulnerable**
-- Un contenidor Docker amb la vulnerabilitat **corregida**
+Per a cada vulnerabilitat es proporciona:
+- Un contenidor Docker amb el **servei vulnerable** (versió insegura o mal configurada)
+- Un contenidor Docker amb el **servei corregit** (versió actualitzada o configuració segura)
 - Documentació tècnica detallada explicant la vulnerabilitat, riscos, explotació i solució
 
 ---
 
 ## Objectius Generals
 
-1. Facilitar l'aprenentatge pràctic de la seguretat en contenidors Docker
-2. Entendre com es generen vulnerabilitats reals en entorns containeritzats
-3. Aplicar bones pràctiques de seguretat en Docker
+1. Reproduir vulnerabilitats reals de serveis en un entorn controlat i segur
+2. Entendre com s'exploten CVEs coneguts i males configuracions habituals
+3. Aplicar bones pràctiques de seguretat en serveis i contenidors Docker
 4. Desenvolupar capacitats en ciberseguretat i administració de sistemes
-5. Experimentar directament amb configuracions vulnerables en un entorn controlat
+5. Experimentar directament amb atacs i defenses en un laboratori aïllat
 
 ---
 
@@ -31,28 +31,48 @@ Per a cada vulnerabilitat seleccionada, es desenvolupa:
 DockerSecLab/
 ├── vulnerabilities/
 │   ├── network/
-│   │   ├── exposed-ports/
+│   │   ├── apache/
 │   │   │   ├── Dockerfile.vulnerable
 │   │   │   ├── Dockerfile.fixed
 │   │   │   └── docker-compose.yml
-│   │   ├── unencrypted-communication/
-│   │   └── insecure-network-config/
+│   │   ├── ftp/
+│   │   │   ├── Dockerfile.vulnerable
+│   │   │   ├── Dockerfile.fixed
+│   │   │   └── docker-compose.yml
+│   │   └── redis/
+│   │       ├── Dockerfile.vulnerable
+│   │       ├── Dockerfile.fixed
+│   │       └── docker-compose.yml
 │   ├── configuration/
-│   │   ├── running-as-root/
-│   │   ├── hardcoded-credentials/
-│   │   └── obsolete-versions/
+│   │   ├── mysql/
+│   │   │   ├── Dockerfile.vulnerable
+│   │   │   ├── Dockerfile.fixed
+│   │   │   └── docker-compose.yml
+│   │   ├── nginx/
+│   │   │   ├── Dockerfile.vulnerable
+│   │   │   ├── Dockerfile.fixed
+│   │   │   └── docker-compose.yml
+│   │   └── ssh/
+│   │       ├── Dockerfile.vulnerable
+│   │       ├── Dockerfile.fixed
+│   │       └── docker-compose.yml
 │   └── container-host/
-│       ├── unnecessary-capabilities/
 │       ├── dangerous-mounts/
-│       └── no-resource-limits/
+│       ├── no-resource-limits/
+│       └── unnecessary-capabilities/
 ├── documentation/
 │   ├── README.md
 │   ├── VULNERABILITIES.md
 │   └── vulnerabilities/
-│       ├── 1-running-as-root.md
-│       ├── 2-exposed-ports.md
-│       ├── 3-hardcoded-credentials.md
-│       └── ...
+│       ├── 1-apache-cve-2021-41773.md
+│       ├── 2-ftp-vsftpd-backdoor.md
+│       ├── 3-redis-sense-autenticacio.md
+│       ├── 4-mysql-credencials-febles.md
+│       ├── 5-nginx-misconfiguracio.md
+│       ├── 6-ssh-configuracio-insegura.md
+│       ├── 7-dangerous-mounts.md
+│       ├── 8-no-resource-limits.md
+│       └── 9-unnecessary-capabilities.md
 ├── compose-files/
 │   └── docker-compose.yml
 ├── scripts/
@@ -75,7 +95,7 @@ DockerSecLab/
 ### Software
 - Distribució Linux: Ubuntu 20.04 LTS o superior
 - Docker: v20.10+
-- Docker Compose: v1.29+
+- Docker Compose: v2.0+
 - Git: v2.25+
 - Bash: v4.0+
 
@@ -83,43 +103,20 @@ DockerSecLab/
 
 ## Instal·lació i Configuració
 
-### 1. Actualitzar el sistema
-```bash
-sudo apt update && sudo apt upgrade -y
-```
-
-### 2. Instal·lar Docker
-```bash
-sudo apt install -y apt-transport-https ca-certificates curl gnupg lsb-release
-
-curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
-
-echo \
-  "deb [arch=amd64 signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu \
-  $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
-
-sudo apt update
-sudo apt install -y docker-ce docker-ce-cli containerd.io
-
-docker --version
-```
-
-### 3. Instal·lar Docker Compose
-```bash
-sudo apt install -y docker-compose
-docker-compose --version
-```
-
-### 4. Configurar permisos
-```bash
-sudo usermod -aG docker $USER
-newgrp docker
-```
-
-### 5. Clonar el projecte
+### 1. Clonar el projecte
 ```bash
 git clone https://github.com/Libori-cyborg/Docker-amb-vulnerabilitats.git DockerSecLab
 cd DockerSecLab
+```
+
+### 2. Executar el setup automàtic
+```bash
+sudo bash scripts/setup.sh
+```
+
+### 3. Construir totes les imatges
+```bash
+bash scripts/build-all.sh
 ```
 
 ---
@@ -137,14 +134,14 @@ docker-compose up -d
 docker ps
 ```
 
-### Aturar contenidors
+### Executar tests de verificació
 ```bash
-docker-compose down
+bash scripts/test-vulnerabilities.sh
 ```
 
-### Netejar completament
+### Aturar i netejar
 ```bash
-docker-compose down -v
+docker-compose down
 docker system prune -a
 ```
 
@@ -152,65 +149,57 @@ docker system prune -a
 
 ## Vulnerabilitats Incloses
 
-La documentació detallada de cada vulnerabilitat es troba a la carpeta `documentation/vulnerabilities/`. El resum complet de totes les vulnerabilitats està disponible a `VULNERABILITIES.md`.
-
 ### Vulnerabilitats de Xarxa
 
-| Num | Vulnerabilitat | Descripció |
-|---|---|---|
-| 2 | exposed-ports | Exposició innecessària de ports |
-| - | unencrypted-communication | Protocols sense xifratge (HTTP, Telnet, FTP) |
-| - | insecure-network-config | Binding a 0.0.0.0, sense firewall |
+| Num | Servei | Vulnerabilitat | CVE / CWE | Ports |
+|---|---|---|---|---|
+| 1 | Apache 2.4.49 | Path Traversal + RCE | CVE-2021-41773 | 9001 / 9002 |
+| 2 | vsftpd 2.3.4 | Backdoor porta 6200 | CVE-2011-2523 | 2121 / 2122 |
+| 3 | Redis | Sense autenticació, exposat a 0.0.0.0 | CWE-287 | 6380 / 6381 |
 
 ### Vulnerabilitats de Configuració de Serveis
 
-| Num | Vulnerabilitat | Descripció |
-|---|---|---|
-| 1 | running-as-root | Contenidors corrent amb privilegis màxims |
-| 3 | hardcoded-credentials | Secrets emmagatzemats al Dockerfile o variables d'entorn |
-| 4 | obsolete-versions | Serveis amb vulnerabilitats conegudes (CVEs) |
+| Num | Servei | Vulnerabilitat | CVE / CWE | Ports |
+|---|---|---|---|---|
+| 4 | MySQL | Root sense contrasenya + accés remot obert | CWE-521 | 3308 / 3309 |
+| 5 | Nginx | Directory listing + fitxers sensibles exposats | CWE-548 | 9003 / 9004 |
+| 6 | OpenSSH | PermitRootLogin + contrasenya feble | CWE-521 | 2223 / 2224 |
 
 ### Vulnerabilitats de Configuració del Contenidor/Host
 
-| Num | Vulnerabilitat | Descripció |
-|---|---|---|
-| - | unnecessary-capabilities | Permisos de sistema excessius |
-| - | dangerous-mounts | Accés sense restriccions a directoris del host |
-| - | no-resource-limits | CPU, memòria i I/O il·limitades |
+| Num | Vulnerabilitat | CVE / CWE | Ports |
+|---|---|---|---|
+| 7 | Muntatges perillosos (/, docker.sock) | CWE-284 | 8093 / 8094 |
+| 8 | Sense límits de recursos (DoS) | CWE-400 | 8089 / 8090 |
+| 9 | Capabilities innecessàries | CWE-250 | 8091 / 8092 |
 
 ---
 
 ## Com Usar el Catàleg
 
-Per a cada vulnerabilitat trobaràs:
-
-### Dockerfile.vulnerable
-Implementació amb la vulnerabilitat activa per estudiar-la.
+### Executar una vulnerabilitat individual
 ```bash
-docker build -f vulnerabilities/network/exposed-ports/Dockerfile.vulnerable \
-  -t seclab-vulnerable:exposed-ports .
+# Exemple: Apache CVE-2021-41773
+docker-compose -f vulnerabilities/network/apache/docker-compose.yml up -d
+
+# Comprovar que funciona
+curl http://localhost:9001
+
+# Provar el path traversal (contenidor vulnerable)
+curl --path-as-is http://localhost:9001/cgi-bin/.%2e/.%2e/.%2e/etc/passwd
+
+# Aturar
+docker-compose -f vulnerabilities/network/apache/docker-compose.yml down
 ```
 
-### Dockerfile.fixed
-Versió corregida seguint bones pràctiques de seguretat.
+### Construir una imatge individualment
 ```bash
-docker build -f vulnerabilities/network/exposed-ports/Dockerfile.fixed \
-  -t seclab-fixed:exposed-ports .
-```
+docker build -f vulnerabilities/network/apache/Dockerfile.vulnerable \
+  -t seclab-vuln:apache vulnerabilities/network/apache/
 
-### docker-compose.yml
-Per executar la versió vulnerable i la corregida simultàniament.
-```bash
-docker-compose -f vulnerabilities/network/exposed-ports/docker-compose.yml up
+docker build -f vulnerabilities/network/apache/Dockerfile.fixed \
+  -t seclab-fixed:apache vulnerabilities/network/apache/
 ```
-
-### Documentació Tècnica
-Cada vulnerabilitat té un fitxer `.md` a `documentation/vulnerabilities/` amb:
-- Descripció de la vulnerabilitat
-- Riscos i conseqüències
-- Com s'explota
-- Com s'ha solucionat
-- Bones pràctiques
 
 ---
 
@@ -218,31 +207,35 @@ Cada vulnerabilitat té un fitxer `.md` a `documentation/vulnerabilities/` amb:
 
 ### Inspeccions bàsiques
 ```bash
-docker inspect <image-id>
+docker inspect <container-name>
 docker port <container-name>
-docker top <container-name>
 docker logs <container-name>
 ```
 
 ### Anàlisi de xarxa
 ```bash
-netstat -tuln
+nmap -sV -p <port> localhost
 ss -tuln
+nc -w 3 localhost <port>
 ```
 
-### Anàlisi de seguretat
+### Anàlisi de vulnerabilitats
 ```bash
-# Instal·lar Trivy
-wget https://github.com/aquasecurity/trivy/releases/download/v0.30.0/trivy_0.30.0_Linux-64bit.deb
-sudo dpkg -i trivy_0.30.0_Linux-64bit.deb
+# Escaneig amb Trivy
+trivy image seclab-vuln:apache
+trivy image seclab-fixed:apache
 
-# Escanejar imatge
-trivy image <image-name>
+# Captura de tràfic
+tcpdump -i any port <port>
+
+# Prova d'autenticació
+redis-cli -p 6380 ping
+mysql -h 127.0.0.1 -P 3308 -u root
 ```
 
 ---
 
-## Consideracions Legals i Etica
+## Consideracions Legals i Ètiques
 
 Aquest projecte és estrictament educatiu i per a ús en entorns controlats i autoritzats.
 
@@ -256,13 +249,14 @@ Aquest projecte és estrictament educatiu i per a ús en entorns controlats i au
 ## Recursos Addicionals
 
 - [Docker Security](https://docs.docker.com/engine/security/)
-- [Docker Best Practices](https://docs.docker.com/develop/dev-best-practices/)
-- [CIS Docker Benchmark](https://www.cisecurity.org/)
+- [NVD - National Vulnerability Database](https://nvd.nist.gov/)
+- [CVE-2021-41773 Detail](https://nvd.nist.gov/vuln/detail/CVE-2021-41773)
+- [CVE-2011-2523 Detail](https://nvd.nist.gov/vuln/detail/CVE-2011-2523)
 - [OWASP Docker Security Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Docker_Security_Cheat_Sheet.html)
 - [Trivy - Vulnerability Scanner](https://github.com/aquasecurity/trivy)
-- [Hadolint - Dockerfile Linter](https://github.com/hadolint/hadolint)
+- [CIS Docker Benchmark](https://www.cisecurity.org/benchmark/docker)
 
 ---
 
-**Ultima actualitzacio:** Marc 2026
-**Versio:** 1.0.0
+**Ultima actualitzacio:** Abril 2026
+**Versio:** 2.0.0

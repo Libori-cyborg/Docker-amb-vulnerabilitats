@@ -1,0 +1,21 @@
+# Vulnerable: Redis sense autenticació exposat a totes les interfícies
+FROM ubuntu:20.04
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update && apt-get install -y redis-server
+
+# Configuració vulnerable: escolta a totes les interfícies sense contrasenya
+RUN sed -i 's/bind 127.0.0.1/bind 0.0.0.0/' /etc/redis/redis.conf && \
+    sed -i 's/protected-mode yes/protected-mode no/' /etc/redis/redis.conf
+
+# Afegir dades sensibles per demostrar l'exposició
+RUN service redis-server start && \
+    redis-cli SET secret_key "contrasenya_admin_123" && \
+    redis-cli SET db_password "mysql_root_pass" && \
+    redis-cli SET api_token "tok_prod_xK92mNpQ" && \
+    service redis-server stop
+
+EXPOSE 6379
+
+CMD ["redis-server", "/etc/redis/redis.conf"]

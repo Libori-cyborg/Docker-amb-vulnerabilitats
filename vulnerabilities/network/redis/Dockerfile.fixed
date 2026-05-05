@@ -1,0 +1,20 @@
+# Fixed: Redis amb autenticació i binding restringit
+FROM ubuntu:22.04
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update && apt-get install -y redis-server
+
+RUN useradd -m -u 1001 redisuser
+
+# Configuració segura: només connexions locals i contrasenya obligatòria
+RUN sed -i 's/bind 127.0.0.1 -::1/bind 127.0.0.1/' /etc/redis/redis.conf && \
+    sed -i 's/# requirepass foobared/requirepass R3d1s_S3cur3!2024/' /etc/redis/redis.conf && \
+    sed -i 's/protected-mode yes/protected-mode yes/' /etc/redis/redis.conf && \
+    echo "rename-command FLUSHALL \"\"" >> /etc/redis/redis.conf && \
+    echo "rename-command CONFIG \"\"" >> /etc/redis/redis.conf && \
+    echo "rename-command DEBUG \"\"" >> /etc/redis/redis.conf
+
+EXPOSE 6379
+
+CMD ["redis-server", "/etc/redis/redis.conf", "--user", "redisuser"]
