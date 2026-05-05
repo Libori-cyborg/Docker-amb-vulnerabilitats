@@ -2,8 +2,6 @@
 # build-all.sh - Arnau Libori i Ayoub El Ballaoui
 # Construeix totes les imatges Docker del projecte
 
-set -e
-
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 
@@ -12,7 +10,8 @@ echo "Arnau Libori i Ayoub El Ballaoui"
 echo ""
 
 if ! docker info &> /dev/null; then
-    echo "ERROR: Docker no esta en execució"
+    echo "ERROR: Docker no esta en execucio"
+    echo "Inicia Docker amb: sudo systemctl start docker"
     exit 1
 fi
 
@@ -25,6 +24,7 @@ build_image() {
 
     if [ ! -d "$FULL_PATH" ]; then
         echo "  AVIS: Carpeta no trobada: $FULL_PATH"
+        echo ""
         return
     fi
 
@@ -44,15 +44,25 @@ build_image() {
     echo ""
 }
 
-build_image "running-as-root"        "configuration/running-as-root"
-build_image "exposed-ports"          "network/exposed-ports"
-build_image "hardcoded-credentials"  "configuration/hardcoded-credentials"
-build_image "obsolete-versions"      "configuration/obsolete-versions"
-build_image "no-resource-limits"     "container-host/no-resource-limits"
-build_image "unnecessary-capabilities" "container-host/unnecessary-capabilities"
-build_image "dangerous-mounts"       "container-host/dangerous-mounts"
+echo "== Vulnerabilitats de configuracio Docker =="
+echo ""
+build_image "running-as-root"           "configuration/running-as-root"
+build_image "exposed-ports"             "network/exposed-ports"
+build_image "hardcoded-credentials"     "configuration/hardcoded-credentials"
+build_image "obsolete-versions"         "configuration/obsolete-versions"
+build_image "no-resource-limits"        "container-host/no-resource-limits"
+build_image "unnecessary-capabilities"  "container-host/unnecessary-capabilities"
+build_image "dangerous-mounts"          "container-host/dangerous-mounts"
 build_image "unencrypted-communication" "network/unencrypted-communication"
-build_image "insecure-network-config" "network/insecure-network-config"
+build_image "insecure-network-config"   "network/insecure-network-config"
+
+echo "== Vulnerabilitats de serveis =="
+echo ""
+build_image "apache"  "services/apache"
+build_image "nginx"   "services/nginx"
+build_image "mysql"   "services/mysql"
+build_image "ssh"     "services/ssh"
+build_image "ftp"     "services/ftp"
 
 echo "=== Build finalitzat ==="
 echo ""
