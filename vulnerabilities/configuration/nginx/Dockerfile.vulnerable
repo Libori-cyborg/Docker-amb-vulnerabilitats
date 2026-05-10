@@ -30,8 +30,7 @@ EOF
 # Afegir fitxers sensibles per demostrar l'exposicio
 RUN mkdir -p /var/www/html && \
     echo "DB_PASSWORD=secret123" > /var/www/html/.env && \
-    echo "config data" > /var/www/html/config.conf && \
-    echo "<h1>Hola</h1>" > /var/www/html/index.html
+    echo "config data" > /var/www/html/config.conf
 
 EXPOSE 80
 
