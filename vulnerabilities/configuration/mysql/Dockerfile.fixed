@@ -12,15 +12,14 @@ RUN sed -i 's/bind-address.*/bind-address = 127.0.0.1/' /etc/mysql/mysql.conf.d/
 
 # Usuari amb contrasenya forta i privilegis minims
 RUN service mysql start && \
-    mysql -e "ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password BY 'R00t_S3cur3!2024';" && \
-    mysql -e "DELETE FROM mysql.user WHERE User='';" && \
-    mysql -e "DELETE FROM mysql.user WHERE Host!='localhost';" && \
-    mysql -e "DROP DATABASE IF EXISTS test;" && \
-    mysql -e "FLUSH PRIVILEGES;" && \
-    mysql -e "CREATE DATABASE app_db;" && \
-    mysql -e "CREATE USER 'appuser'@'localhost' IDENTIFIED BY 'App_S3cur3!2024';" && \
-    mysql -e "GRANT SELECT, INSERT, UPDATE ON app_db.* TO 'appuser'@'localhost';" && \
-    mysql -e "FLUSH PRIVILEGES;"
+    mysql -u root --connect-expired-password -e "ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password BY 'R00t_S3cur3!2024';" && \
+    mysql -u root -pR00t_S3cur3\!2024 -e "DELETE FROM mysql.user WHERE User='';" && \
+    mysql -u root -pR00t_S3cur3\!2024 -e "DELETE FROM mysql.user WHERE Host!='localhost';" && \
+    mysql -u root -pR00t_S3cur3\!2024 -e "DROP DATABASE IF EXISTS test;" && \
+    mysql -u root -pR00t_S3cur3\!2024 -e "CREATE DATABASE app_db;" && \
+    mysql -u root -pR00t_S3cur3\!2024 -e "CREATE USER 'appuser'@'localhost' IDENTIFIED BY 'App_S3cur3!2024';" && \
+    mysql -u root -pR00t_S3cur3\!2024 -e "GRANT SELECT, INSERT, UPDATE ON app_db.* TO 'appuser'@'localhost';" && \
+    mysql -u root -pR00t_S3cur3\!2024 -e "FLUSH PRIVILEGES;"
 
 EXPOSE 3306
 

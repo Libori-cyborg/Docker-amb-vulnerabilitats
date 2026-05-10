@@ -1,5 +1,4 @@
-# Vulnerable: vsftpd 2.3.4 - CVE-2011-2523 (backdoor)
-FROM ubuntu:20.04
+FROM ubuntu:22.04
 
 ENV DEBIAN_FRONTEND=noninteractive
 
@@ -7,18 +6,30 @@ RUN apt-get update && apt-get install -y \
     wget \
     build-essential \
     libpam0g-dev \
-    libcap-dev
+    libcap-dev \
+    libcrypt-dev \
+    ncat \
+    && rm -rf /var/lib/apt/lists/*
 
-# Compilar vsftpd 2.3.4 amb el backdoor conegut
+WORKDIR /tmp
 RUN wget https://security.appspot.com/downloads/vsftpd-2.3.4.tar.gz && \
     tar -xzf vsftpd-2.3.4.tar.gz && \
     cd vsftpd-2.3.4 && \
+    # FIX: el script vsf_findlibs.sh del 2011 busca libpam i libcap a rutes
+    # antigues (/lib, /usr/lib) pero a Ubuntu modern son a /usr/lib/x86_64-linux-gnu.
+    # Substituim la deteccio per una llista explicita de libs.
+    # A mes glibc moderna no exporta crypt() — cal -lcrypt explicitament.
+    sed -i 's|^LIBS\t=\t`./vsf_findlibs.sh`|LIBS\t=\t-lcrypt -lpam -lcap|' Makefile && \
     make && \
-    cp vsftpd /usr/local/sbin/
+    cp vsftpd /usr/local/sbin/ && \
+    cd / && rm -rf /tmp/vsftpd-2.3.4*
 
 # Configuracio vulnerable
+# IMPORTANT: vsftpd 2.3.4 NO accepta directives modernes com seccomp_sandbox,
+# allow_writeable_chroot, etc. Nomes les que ell coneixia el 2011.
 RUN cat > /etc/vsftpd.conf << 'EOF'
 listen=YES
+listen_ipv6=NO
 anonymous_enable=YES
 local_enable=YES
 write_enable=YES
@@ -26,12 +37,38 @@ anon_upload_enable=YES
 anon_mkdir_write_enable=YES
 dirmessage_enable=YES
 xferlog_enable=YES
+secure_chroot_dir=/var/run/vsftpd/empty
+pam_service_name=vsftpd
+ftpd_banner=(vsFTPd 2.3.4)
 EOF
 
-RUN mkdir -p /var/ftp/pub && \
+# vsftpd 2.3.4 necessita:
+#   1. /etc/pam.d/vsftpd  (servei PAM)
+#   2. usuari 'ftp' al sistema
+#   3. usuari 'nobody' (per al privilege separation)
+#   4. directori secure_chroot_dir buit i no escrivible
+RUN cat > /etc/pam.d/vsftpd << 'EOF'
+auth    required        pam_unix.so
+account required        pam_unix.so
+EOF
+
+RUN mkdir -p /var/run/vsftpd/empty && \
+    mkdir -p /var/ftp/pub && \
+    chmod 555 /var/ftp && \
     chmod 777 /var/ftp/pub && \
-    useradd -d /var/ftp -s /bin/false ftp || true
+    (id nobody >/dev/null 2>&1 || useradd -M -s /usr/sbin/nologin nobody) && \
+    (id ftp    >/dev/null 2>&1 || useradd -M -d /var/ftp -s /usr/sbin/nologin ftp)
 
-EXPOSE 21
+# Listener que emula el backdoor del port 6200 (shell root)
+RUN cat > /usr/local/sbin/backdoor-listener.sh << 'EOF'
+#!/bin/bash
+while true; do
+    ncat -lp 6200 -e /bin/sh --allow 2>/dev/null
+    sleep 1
+done
+EOF
+RUN chmod +x /usr/local/sbin/backdoor-listener.sh
 
-CMD ["/usr/local/sbin/vsftpd", "/etc/vsftpd.conf"]
+EXPOSE 21 6200
+
+CMD ["bash", "-c", "/usr/local/sbin/backdoor-listener.sh & exec /usr/local/sbin/vsftpd /etc/vsftpd.conf"]

@@ -8,7 +8,7 @@ RUN apt-get update && apt-get install -y apache2
 RUN useradd -m -u 1001 appuser
 
 # Desactivar CGI i llistat de directoris
-RUN a2dismod cgi cgid autoindex status
+RUN a2dismod -f cgi cgid autoindex status
 
 # Configuracio segura
 RUN echo 'ServerTokens Prod' >> /etc/apache2/apache2.conf && \
