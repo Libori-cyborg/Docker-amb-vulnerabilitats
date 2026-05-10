@@ -194,7 +194,15 @@ echo ""
 
 # --- No resource limits ---
 echo "--- Test 7: Sense limits de recursos ---"
-if docker image inspect seclab-fixed:no-resource-limits &> /dev/null; then
+if docker image inspect seclab-vuln:no-resource-limits &> /dev/null; then
+    docker run -d --name test-resource-limits-vuln seclab-vuln:no-resource-limits &> /dev/null
+    sleep 1
+    MEM_VULN=$(docker inspect test-resource-limits-vuln 2>/dev/null | grep '"Memory"' | head -1 | tr -d ' "Memory:,')
+    docker rm -f test-resource-limits-vuln &> /dev/null
+    [ "$MEM_VULN" -eq 0 ] 2>/dev/null && \
+        pass "Vulnerable: no hi ha limits de memoria configurats" || \
+        info "Vulnerable check: limits detectats ($MEM_VULN)"
+
     docker run -d --name test-resource-limits \
         --memory="256m" --cpus="0.5" \
         seclab-fixed:no-resource-limits &> /dev/null
@@ -211,7 +219,16 @@ echo ""
 
 # --- Unnecessary capabilities ---
 echo "--- Test 8: Capabilities innecessaries ---"
-if docker image inspect seclab-fixed:unnecessary-capabilities &> /dev/null; then
+if docker image inspect seclab-vuln:unnecessary-capabilities &> /dev/null; then
+    docker run -d --name test-caps-vuln seclab-vuln:unnecessary-capabilities &> /dev/null
+    sleep 1
+    # Un contenidor vulnerable no descarta les capabilities per defecte
+    CAPS_DROP_VULN=$(docker inspect test-caps-vuln 2>/dev/null | grep -A1 '"CapDrop"' | grep -c "ALL")
+    docker rm -f test-caps-vuln &> /dev/null
+    [ "$CAPS_DROP_VULN" -eq 0 ] && \
+        pass "Vulnerable: el contenidor te accés a totes les capabilities per defecte" || \
+        info "Capabilities vulnerable check fallit"
+
     docker run -d --name test-caps \
         --cap-drop ALL --cap-add NET_BIND_SERVICE \
         seclab-fixed:unnecessary-capabilities &> /dev/null
@@ -228,7 +245,15 @@ echo ""
 
 # --- Dangerous mounts ---
 echo "--- Test 9: Muntatges perillosos ---"
-if docker image inspect seclab-fixed:dangerous-mounts &> /dev/null; then
+if docker image inspect seclab-vuln:dangerous-mounts &> /dev/null; then
+    docker run -d --name test-mounts-vuln -v /:/host:ro seclab-vuln:dangerous-mounts &> /dev/null
+    sleep 1
+    HOST_ACCESS_VULN=$(docker exec test-mounts-vuln ls /host/etc/passwd 2>&1 || true)
+    docker rm -f test-mounts-vuln &> /dev/null
+    echo "$HOST_ACCESS_VULN" | grep -q "/host/etc/passwd" && \
+        pass "Vulnerable: es pot accedir a /etc/passwd del host des del contenidor" || \
+        info "Muntatges vulnerable check fallit"
+
     docker run -d --name test-mounts seclab-fixed:dangerous-mounts &> /dev/null
     sleep 1
     HOST_ACCESS=$(docker exec test-mounts ls /host 2>&1 || true)
