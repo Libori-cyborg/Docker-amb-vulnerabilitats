@@ -4,18 +4,19 @@ FROM ubuntu:22.04
 ENV DEBIAN_FRONTEND=noninteractive
 
 # Versions actuals amb pegats de seguretat aplicats
-RUN apt-get update && apt-get install -y \
+RUN apt-get update && apt-get install -y --no-install-recommends \
     apache2 \
     php8.1 \
-    openssl
+    openssl \
+    curl && \
+    apt-get clean && rm -rf /var/lib/apt/lists/*
 
 RUN useradd -m -u 1001 appuser
 
-# Actualitzar sempre abans de construir
-RUN apt-get upgrade -y && apt-get clean
+# HEALTHCHECK
+HEALTHCHECK --interval=30s --timeout=3s \
+  CMD curl -f http://localhost/ || exit 1
 
 EXPOSE 80
-
 USER appuser
-
 CMD ["apache2ctl", "-D", "FOREGROUND"]

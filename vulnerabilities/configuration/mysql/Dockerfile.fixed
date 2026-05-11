@@ -3,12 +3,18 @@ FROM ubuntu:20.04
 
 ENV DEBIAN_FRONTEND=noninteractive
 
-RUN apt-get update && apt-get install -y mysql-server
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    mysql-server && \
+    apt-get clean && rm -rf /var/lib/apt/lists/*
 
 RUN useradd -m -u 1001 appuser
 
 # Configuracio segura: nomes connexions locals
 RUN sed -i 's/bind-address.*/bind-address = 127.0.0.1/' /etc/mysql/mysql.conf.d/mysqld.cnf
+
+# HEALTHCHECK per a MySQL
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+  CMD mysqladmin ping -h localhost
 
 # Usuari amb contrasenya forta i privilegis minims
 RUN service mysql start && \
@@ -22,5 +28,5 @@ RUN service mysql start && \
     mysql -u root -pR00t_S3cur3\!2024 -e "FLUSH PRIVILEGES;"
 
 EXPOSE 3306
-
+USER mysql
 CMD ["mysqld_safe"]

@@ -3,7 +3,8 @@ FROM ubuntu:22.04
 
 ENV DEBIAN_FRONTEND=noninteractive
 
-RUN apt-get update && apt-get install -y apache2
+RUN apt-get update && apt-get install -y --no-install-recommends apache2 curl && \
+    apt-get clean && rm -rf /var/lib/apt/lists/*
 
 RUN useradd -m -u 1001 appuser
 
@@ -21,6 +22,10 @@ RUN echo '<Directory />' >> /etc/apache2/apache2.conf && \
     echo '    Require all denied' >> /etc/apache2/apache2.conf && \
     echo '</Directory>' >> /etc/apache2/apache2.conf
 
-EXPOSE 80
+# HEALTHCHECK
+HEALTHCHECK --interval=30s --timeout=3s \
+  CMD curl -f http://localhost/ || exit 1
 
+USER appuser
+EXPOSE 80
 CMD ["apache2ctl", "-D", "FOREGROUND"]

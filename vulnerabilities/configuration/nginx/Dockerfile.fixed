@@ -1,9 +1,18 @@
 # Fixed: Nginx amb configuracio segura
-FROM ubuntu:22.04
+FROM nginx:alpine
 
-ENV DEBIAN_FRONTEND=noninteractive
+# Configuracio segura
+COPY nginx.conf /etc/nginx/nginx.conf
+COPY index.html /usr/share/nginx/html/
+COPY .env /usr/share/nginx/html/.env
 
-RUN apt-get update && apt-get install -y nginx
+# HEALTHCHECK per a Nginx
+HEALTHCHECK --interval=30s --timeout=3s \
+  CMD curl -f http://localhost/ || exit 1
+
+# En Alpine, l'usuari nginx ja existeix i s'usa per defecte en moltes configs
+# pero ens assegurem
+USER nginx
 
 RUN useradd -m -u 1001 appuser
 

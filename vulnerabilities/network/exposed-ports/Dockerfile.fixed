@@ -1,7 +1,9 @@
 # Fixed: només s'exposa el port necessari
 FROM ubuntu:20.04
 
-RUN apt-get update && apt-get install -y python3
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3 curl && \
+    apt-get clean && rm -rf /var/lib/apt/lists/*
 
 RUN useradd -m -u 1001 appuser
 
@@ -10,6 +12,10 @@ COPY . .
 RUN chown -R appuser:appuser /app
 
 USER appuser
+
+# HEALTHCHECK
+HEALTHCHECK --interval=30s --timeout=3s \
+  CMD curl -f http://localhost:8080/ || exit 1
 
 # Només s'exposa el port que realment necessita l'aplicació
 EXPOSE 8080

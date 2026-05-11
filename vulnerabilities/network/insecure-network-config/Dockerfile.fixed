@@ -1,7 +1,9 @@
 # Fixed: contenidor amb configuració de xarxa restringida
 FROM ubuntu:22.04
 
-RUN apt-get update && apt-get install -y python3
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3 curl && \
+    apt-get clean && rm -rf /var/lib/apt/lists/*
 
 RUN useradd -m -u 1001 appuser
 
@@ -9,6 +11,10 @@ WORKDIR /app
 RUN chown -R appuser:appuser /app
 
 USER appuser
+
+# HEALTHCHECK
+HEALTHCHECK --interval=30s --timeout=3s \
+  CMD curl -f http://localhost:8080/ || exit 1
 
 # Escolta nomes a la interficie interna de Docker
 CMD ["python3", "-m", "http.server", "8080", "--bind", "127.0.0.1"]
